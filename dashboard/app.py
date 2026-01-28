@@ -38,8 +38,8 @@ trust_engine = get_trust_engine()
 app.config['SECRET_KEY'] = 'clawdbot-security-dashboard'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Paths
-CLAWDBOT_DIR = Path.home() / '.clawdbot'
+# Paths - use env var for Docker compatibility
+CLAWDBOT_DIR = Path(os.environ.get('CLAWDBOT_DIR', str(Path.home() / '.clawdbot')))
 SESSIONS_DIR = CLAWDBOT_DIR / 'agents'
 
 def parse_session_file(filepath, limit=100):
