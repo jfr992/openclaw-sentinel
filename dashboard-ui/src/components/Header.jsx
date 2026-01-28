@@ -58,7 +58,7 @@ export default function Header({ onOpenPrivacy }) {
   return (
     <header className="flex items-center justify-between mb-8">
       <div>
-        <h1 className="text-2xl font-semibold text-white">MoltBot</h1>
+        <h1 className="text-2xl font-semibold text-white">CrabGuard</h1>
         <p className="text-sm text-gray-500 mt-1">Security Monitoring Dashboard</p>
       </div>
       
