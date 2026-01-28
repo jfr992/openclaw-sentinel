@@ -33,7 +33,7 @@ def create_connect_params(token: Optional[str] = None) -> Dict[str, Any]:
         "permissions": {},
         "locale": "en-US",
         "userAgent": "moltbot-guardian/1.0.0",
-        "auth": {"token": token} if token else None,
+        "auth": {"token": token} if token else {},
     }
 
 
