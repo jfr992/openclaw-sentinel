@@ -37,7 +37,7 @@ export default function Header({ alertCount = 0 }) {
       try {
         const res = await fetch('/api/baseline')
         if (res.ok) setBaseline(await res.json())
-      } catch (e) {}
+      } catch { /* ignore */ }
     }
     fetchBaseline()
     const interval = setInterval(fetchBaseline, 30000)
@@ -49,7 +49,7 @@ export default function Header({ alertCount = 0 }) {
       try {
         const res = await fetch('/api/usage')
         if (res.ok) setUsage(await res.json())
-      } catch (e) {}
+      } catch { /* ignore */ }
     }
     fetchUsage()
     const interval = setInterval(fetchUsage, 60000)
@@ -62,7 +62,7 @@ export default function Header({ alertCount = 0 }) {
       try {
         const res = await fetch('/api/gateway/status')
         if (res.ok) setGateway(await res.json())
-      } catch (e) {
+      } catch {
         setGateway({ connected: false })
       }
     }

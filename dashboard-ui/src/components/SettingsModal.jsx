@@ -53,21 +53,21 @@ export default function SettingsModal({ isOpen, onClose }) {
     try {
       const res = await fetch('/api/baseline/config')
       if (res.ok) setBaselineConfig(await res.json())
-    } catch (e) {}
+    } catch { /* ignore */ }
   }
 
   async function loadNotifications() {
     try {
       const res = await fetch('/api/notifications/config')
       if (res.ok) setNotifications(await res.json())
-    } catch (e) {}
+    } catch { /* ignore */ }
   }
 
   async function loadGatewayStatus() {
     try {
       const res = await fetch('/api/gateway/status')
       if (res.ok) setGateway(await res.json())
-    } catch (e) {}
+    } catch { /* ignore */ }
   }
 
   async function saveBaselineConfig() {
@@ -77,7 +77,7 @@ export default function SettingsModal({ isOpen, onClose }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(baselineConfig),
       })
-    } catch (e) {}
+    } catch { /* ignore */ }
   }
 
   async function saveNotifications() {
@@ -95,7 +95,7 @@ export default function SettingsModal({ isOpen, onClose }) {
         body: JSON.stringify(config),
       })
       await loadNotifications()
-    } catch (e) {}
+    } catch { /* ignore */ }
   }
 
   async function testNotifications() {
@@ -105,7 +105,7 @@ export default function SettingsModal({ isOpen, onClose }) {
         const data = await res.json()
         alert(`Test results:\nSlack: ${data.results.slack ?? 'not configured'}\nWebhook: ${data.results.webhook ?? 'not configured'}`)
       }
-    } catch (e) {
+    } catch {
       alert('Test failed')
     }
   }
@@ -114,7 +114,7 @@ export default function SettingsModal({ isOpen, onClose }) {
     try {
       const res = await fetch('/api/gateway/connect', { method: 'POST' })
       if (res.ok) await loadGatewayStatus()
-    } catch (e) {}
+    } catch { /* ignore */ }
   }
 
   async function loadSettings() {
@@ -204,7 +204,7 @@ export default function SettingsModal({ isOpen, onClose }) {
         const data = await res.json()
         setEncryptionError(data.error || 'Setup failed')
       }
-    } catch (e) {
+    } catch {
       setEncryptionError('Setup failed')
     }
     setEncryptionLoading(false)
@@ -225,7 +225,7 @@ export default function SettingsModal({ isOpen, onClose }) {
       } else {
         setEncryptionError('Invalid passphrase')
       }
-    } catch (e) {
+    } catch {
       setEncryptionError('Unlock failed')
     }
     setEncryptionLoading(false)

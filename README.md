@@ -16,9 +16,9 @@
 
 ## What is this?
 
-A **security monitoring layer** for [Clawdbot](https://github.com/clawdbot/clawdbot) AI agents. It watches what your agents do and alerts you to suspicious activity.
+A **security monitoring layer** for [MoltBot](https://github.com/moltbot/moltbot) AI agents. It watches what your agents do and alerts you to suspicious activity.
 
-**This is NOT MoltBot itself** — it's a companion tool that monitors MoltBot/Clawdbot operations.
+**This is NOT MoltBot itself** — it's a companion tool that monitors MoltBot operations.
 
 ---
 
@@ -41,14 +41,14 @@ A **security monitoring layer** for [Clawdbot](https://github.com/clawdbot/clawd
 ### Docker (Recommended)
 
 ```bash
-# Get your Clawdbot gateway token
-TOKEN=$(jq -r '.gateway.auth.token' ~/.clawdbot/clawdbot.json)
+# Get your MoltBot gateway token
+TOKEN=$(jq -r '.gateway.auth.token' ~/.moltbot/moltbot.json)
 
 # Run Guardian
 docker run -d --name guardian \
   -p 5050:5050 \
-  -v ~/.clawdbot:/data:ro \
-  -e CLAWDBOT_API_TOKEN="$TOKEN" \
+  -v ~/.moltbot:/data \
+  -e MOLTBOT_API_TOKEN="$TOKEN" \
   ghcr.io/jfr992/moltbot-guardian:latest
 ```
 
@@ -70,20 +70,86 @@ cd moltbot-guardian
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MOLTBOT_PORT` | `5050` | Dashboard port |
-| `CLAWDBOT_DIR` | `~/.clawdbot` | Agent session logs location |
-| `CLAWDBOT_API_TOKEN` | - | Gateway token (for kill functionality) |
+| `MOLTBOT_DIR` | `~/.moltbot` | Agent session logs location |
+| `MOLTBOT_API_TOKEN` | - | Gateway token (for kill functionality) |
 
 ---
 
-## 📊 API
+## 📈 Observability (OpenTelemetry)
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/health` | Health check |
-| `GET /api/activity` | Recent tool calls, connections |
-| `GET /api/alerts` | Security alerts |
-| `GET /api/network/detailed` | Network analysis with threats |
-| `POST /api/sessions/kill` | Kill agent session |
+Guardian can visualize **Clawdbot's native OTEL metrics** via a bundled collector stack.
+
+### Quick Start
+
+**1. Enable OTEL in Clawdbot** (`~/.clawdbot/clawdbot.json`):
+
+```json
+{
+  "diagnostics": {
+    "otel": {
+      "enabled": true,
+      "endpoint": "http://localhost:4317",
+      "protocol": "grpc",
+      "serviceName": "clawdbot",
+      "traces": true,
+      "metrics": true,
+      "logs": true
+    }
+  }
+}
+```
+
+**2. Start the collector stack:**
+
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.otel.yaml up -d
+```
+
+**3. Restart Clawdbot** to apply config:
+
+```bash
+clawdbot gateway restart
+```
+
+### Dashboards
+
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| Guardian | http://localhost:5050 | — |
+| Grafana | http://localhost:3000 | admin / guardian |
+| Prometheus | http://localhost:9090 | — |
+
+### Clawdbot Metrics
+
+Clawdbot exports these via OTEL when enabled:
+
+| Metric | Description |
+|--------|-------------|
+| `clawdbot.tokens.input` | Input tokens by model |
+| `clawdbot.tokens.output` | Output tokens by model |
+| `clawdbot.cost.total` | API cost in USD |
+| `clawdbot.requests.total` | Total API requests |
+| `clawdbot.requests.duration` | Request latency histogram |
+| `clawdbot.tool_calls` | Tool invocations by name |
+| `clawdbot.sessions.active` | Active session count |
+
+### Custom OTEL Backend
+
+Point Clawdbot to any OTLP-compatible backend:
+
+```json
+{
+  "diagnostics": {
+    "otel": {
+      "enabled": true,
+      "endpoint": "https://otlp.your-provider.com:4317",
+      "headers": { "Authorization": "Bearer <token>" }
+    }
+  }
+}
+```
+
+Supports: Grafana Cloud, Datadog, Honeycomb, Jaeger, SigNoz, etc.
 
 ---
 
@@ -100,22 +166,9 @@ cd moltbot-guardian
 │  ├─ Network         │  └─ Gateway WebSocket     │
 │  └─ Operation Stats │                           │
 ├─────────────────────────────────────────────────┤
-│  ~/.clawdbot/agents/*.jsonl (session logs)      │
+│  ~/.moltbot/agents/*.jsonl (session logs)       │
 └─────────────────────────────────────────────────┘
 ```
-
----
-
-## vs Crabwalk
-
-| | **Guardian** | **[Crabwalk](https://github.com/luccast/crabwalk)** |
-|---|---|---|
-| **Purpose** | Security monitoring | Visual agent watching |
-| **Focus** | Threat detection & alerts | Node graph visualization |
-| **Kill sessions** | ✅ Yes | ❌ No |
-| **Use case** | "Is my agent doing something bad?" | "What is my agent doing?" |
-
-**They're complementary** — use both for full visibility.
 
 ---
 
@@ -127,6 +180,6 @@ MIT — See [LICENSE](LICENSE)
 
 <div align="center">
 
-**A security layer for [Clawdbot](https://github.com/clawdbot/clawdbot)** 🦀
+**A security layer for MoltBot** 🦀 by [@jfr992](https://github.com/jfr992)
 
 </div>

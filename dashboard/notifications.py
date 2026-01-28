@@ -10,7 +10,9 @@ from datetime import datetime
 import urllib.request
 import urllib.error
 
-NOTIFICATIONS_CONFIG = Path.home() / '.clawdbot' / 'security' / 'notifications.json'
+# Use CLAWDBOT_DIR env var for Docker compatibility
+_clawdbot_dir = os.environ.get('CLAWDBOT_DIR', str(Path.home() / '.clawdbot'))
+NOTIFICATIONS_CONFIG = Path(_clawdbot_dir) / 'security' / 'notifications.json'
 
 
 class NotificationManager:

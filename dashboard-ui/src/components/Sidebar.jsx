@@ -63,6 +63,7 @@ export default function Sidebar({ activeView, onViewChange, onOpenSettings, onOp
 
       {/* Nav */}
       <nav className="flex-1 flex flex-col gap-1 w-full px-2">
+        {/* eslint-disable-next-line no-unused-vars */}
         {navItems.map(({ id, icon: Icon, label }) => (
           <button
             key={id}

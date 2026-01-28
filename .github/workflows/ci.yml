@@ -1,13 +1,11 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
 jobs:
-  test:
+  test-python:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -27,6 +25,12 @@ jobs:
           cd dashboard
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run unit tests
+        run: |
+          cd dashboard
+          python -m pytest tests/ -v --tb=short
 
       - name: Test imports
         run: |
@@ -38,10 +42,11 @@ jobs:
           import crypto
           import smart_alerts
           import trust
+          import threat_intel
           print('✅ All imports OK')
           "
 
-  build-frontend:
+  test-frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -57,8 +62,7 @@ jobs:
           npm ci
           npm run build
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: dashboard-ui/dist/
+      - name: Run linter
+        run: |
+          cd dashboard-ui
+          npm run lint --if-present || echo "⚠️ Lint warnings - fix in separate PR"

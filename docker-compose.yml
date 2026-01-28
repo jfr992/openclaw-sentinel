@@ -7,12 +7,12 @@ services:
     image: moltbot-guardian:latest
     container_name: moltbot-guardian
     ports:
-      - "5050:5050"
+      - "127.0.0.1:5050:5050"  # Localhost only - not exposed to network
     volumes:
       - ~/.clawdbot:/data:ro
       - guardian-data:/home/moltbot
     environment:
-      MOLTBOT_HOST: "0.0.0.0"
+      MOLTBOT_HOST: "0.0.0.0"  # Inside container; external access controlled by port binding above
       MOLTBOT_PORT: "5050"
       CLAWDBOT_DIR: "/data"
       # Required for gateway WebSocket connection

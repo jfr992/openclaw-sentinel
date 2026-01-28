@@ -2,6 +2,7 @@
 Behavioral Baseline - Learn normal patterns, detect anomalies.
 """
 import json
+import os
 from pathlib import Path
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -10,8 +11,10 @@ import statistics
 
 from crypto import get_encryption
 
-BASELINE_FILE = Path.home() / '.clawdbot' / 'security' / 'baseline.json'
-BASELINE_ENCRYPTED_FILE = Path.home() / '.clawdbot' / 'security' / 'baseline.enc'
+# Use CLAWDBOT_DIR env var for Docker compatibility
+_clawdbot_dir = os.environ.get('CLAWDBOT_DIR', str(Path.home() / '.clawdbot'))
+BASELINE_FILE = Path(_clawdbot_dir) / 'security' / 'baseline.json'
+BASELINE_ENCRYPTED_FILE = Path(_clawdbot_dir) / 'security' / 'baseline.enc'
 
 class BehaviorBaseline:
     def __init__(self):

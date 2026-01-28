@@ -28,7 +28,9 @@ except ImportError:
         USE_PYCRYPTO = False
 
 
-CRYPTO_CONFIG_FILE = Path.home() / '.clawdbot' / 'security' / 'crypto_config.json'
+# Use CLAWDBOT_DIR env var for Docker compatibility
+_clawdbot_dir = os.environ.get('CLAWDBOT_DIR', str(Path.home() / '.clawdbot'))
+CRYPTO_CONFIG_FILE = Path(_clawdbot_dir) / 'security' / 'crypto_config.json'
 
 
 class BaselineEncryption:

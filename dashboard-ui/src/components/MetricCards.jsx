@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Zap, Globe, Folder, Shield, ShieldAlert, TrendingUp, AlertTriangle, Activity } from 'lucide-react'
 
+// eslint-disable-next-line no-unused-vars
 function MetricCard({ title, value, subtitle, icon: Icon, variant, compact, pulse, isUpdating }) {
   const [showPop, setShowPop] = useState(false)
   const prevValue = useRef(value)
@@ -103,7 +104,7 @@ export default function MetricCards({ data, alertCount, compact }) {
         ])
         if (netRes.ok) setNetwork(await netRes.json())
         if (usageRes.ok) setUsage(await usageRes.json())
-      } catch {}
+      } catch { /* ignore */ }
       // Brief delay to show updating animation
       setTimeout(() => setIsUpdating(false), 200)
     }

@@ -12,7 +12,7 @@ services:
       - ~/.clawdbot:/data:ro
       - guardian-data:/home/moltbot
     environment:
-      MOLTBOT_HOST: "0.0.0.0"
+      MOLTBOT_HOST: "127.0.0.1"  # Localhost only - critical for host network mode!
       MOLTBOT_PORT: "5050"
       CLAWDBOT_DIR: "/data"
     restart: unless-stopped

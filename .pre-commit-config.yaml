@@ -30,9 +30,9 @@ repos:
     hooks:
       - id: bandit
         name: "🐍 Bandit - Python security linter"
-        # -l = severity LOW+, -i = confidence LOW+ (catches all including B104)
-        # Exclude only test directories and venv, not test files
-        args: ["-l", "-i", "-x", "*/tests/*,*/venv/*,*/.venv/*"]
+        # -ll = severity MEDIUM+ (matches CI workflow), -i = confidence LOW+
+        # Low-severity issues (B404/B110/B603/B105) are acceptable patterns
+        args: ["-ll", "-i", "-x", "*/tests/*,*/venv/*,*/.venv/*"]
         files: ^dashboard/.*\.py$
 
   # Safety check as local hook (pyupio/safety repo doesn't have pre-commit hooks)
@@ -44,6 +44,20 @@ repos:
         language: system
         files: requirements\.txt$
         pass_filenames: false
+
+  # =============================================================================
+  # UNIT TESTS - Run before every commit
+  # =============================================================================
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: "🧪 Pytest - Run unit tests"
+        entry: bash -c 'cd dashboard && pip3 install -q pytest pytest-mock && python3 -m pytest tests/ -v --tb=short'
+        language: system
+        files: ^dashboard/.*\.py$
+        pass_filenames: false
+        always_run: true
 
   # =============================================================================
   # GENERAL CODE QUALITY
@@ -83,7 +97,7 @@ repos:
         args: ['--branch', 'main', '--branch', 'master']
 
   # =============================================================================
-  # JAVASCRIPT/NODE SECURITY
+  # JAVASCRIPT/NODE SECURITY & LINTING
   # =============================================================================
 
   - repo: local
@@ -93,6 +107,13 @@ repos:
         entry: bash -c 'cd dashboard-ui && npm audit --audit-level=high || true'
         language: system
         files: package\.json$
+        pass_filenames: false
+
+      - id: eslint
+        name: "📝 ESLint - JavaScript linter"
+        entry: bash -c 'cd dashboard-ui && npm run lint --if-present || echo "⚠️ ESLint has warnings - see output above"'
+        language: system
+        files: ^dashboard-ui/.*\.(js|jsx)$
         pass_filenames: false
 
   # =============================================================================

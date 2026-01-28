@@ -45,7 +45,7 @@ export default function App() {
   }, [])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
-  const { data, loading, error, connectionMode, gatewayConnected } = useActivity(5000)
+  const { data, loading, error, connectionMode } = useActivity(5000)
   const { alerts, refresh: refreshAlerts } = useAlerts(30000)
 
   // Zoom mode - when a section is selected, it expands

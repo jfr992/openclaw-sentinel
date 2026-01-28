@@ -423,8 +423,23 @@ def get_detailed_network():
 
             # Check for suspicious activity using threat intel
             try:
+                # Check remote port for outbound connections
                 port_num = int(remote_port) if remote_port else 0
                 threats = threat_intel.analyze_network(remote_addr, port_num, conn_data.get('hostname'))
+
+                # Also check local port for listening services (suspicious ports like 4444, 31337, etc)
+                if direction == 'listening' and local_port:
+                    try:
+                        local_port_num = int(local_port)
+                        local_threats = threat_intel.analyze_network('0.0.0.0', local_port_num, None)  # nosec B104
+                        if local_threats:
+                            # Mark as listening on suspicious port
+                            for t in local_threats:
+                                t['description'] = f"Listening on {t['description']}"
+                            threats.extend(local_threats)
+                    except ValueError:
+                        pass
+
                 if threats:
                     conn_data['threats'] = threats
                     conn_data['is_suspicious'] = True

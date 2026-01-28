@@ -6,7 +6,10 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from collections import defaultdict
 
-LEARNED_PATTERNS_FILE = Path.home() / '.clawdbot' / 'security' / 'learned_patterns.json'
+# Use CLAWDBOT_DIR env var for Docker compatibility
+import os
+_clawdbot_dir = os.environ.get('CLAWDBOT_DIR', str(Path.home() / '.clawdbot'))
+LEARNED_PATTERNS_FILE = Path(_clawdbot_dir) / 'security' / 'learned_patterns.json'
 
 class SmartAlertFilter:
     def __init__(self):
