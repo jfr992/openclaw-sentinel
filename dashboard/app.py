@@ -1089,6 +1089,46 @@ if __name__ == '__main__':
     # Try to connect to gateway for real-time events
     try:
         gateway_client = get_gateway_client()
+
+        # Register callbacks to process real-time events
+        def on_tool_call(data):
+            """Handle incoming tool calls from gateway."""
+            print(f"[Gateway] Tool call: {data.get('tool', 'unknown')}")
+            # Emit to dashboard UI
+            socketio.emit('tool_call', data)
+            # Run security analysis on exec commands
+            if data.get('tool') == 'exec':
+                command = data.get('args', {}).get('command', '')
+                intel = get_threat_intel()
+                threats = intel.analyze_command(command)
+                if threats:
+                    alert = {
+                        'title': f"🚨 Suspicious command detected",
+                        'severity': 'high',
+                        'description': f"Gateway detected: {command[:100]}",
+                        'timestamp': datetime.now().isoformat(),
+                        'category': 'gateway_threat_intel',
+                        'details': {
+                            'command': command,
+                            'threats': threats,
+                            'source': 'gateway_realtime'
+                        }
+                    }
+                    SECURITY_STATE['alerts'].insert(0, alert)
+                    socketio.emit('security_alert', alert)
+
+        def on_message(data):
+            """Handle incoming messages from gateway."""
+            socketio.emit('agent_message', data)
+
+        def on_session(data):
+            """Handle session events from gateway."""
+            socketio.emit('session_event', data)
+
+        gateway_client.on('tool_call', on_tool_call)
+        gateway_client.on('message', on_message)
+        gateway_client.on('session', on_session)
+
         gateway_client.start_background()
         print("🔗 Gateway connection: attempting...")
     except Exception as e:
