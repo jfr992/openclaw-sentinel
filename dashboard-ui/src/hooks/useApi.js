@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { io } from 'socket.io-client'
 
 export function useActivity(refreshInterval = 5000) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [liveEvents, setLiveEvents] = useState([])
+  const socketRef = useRef(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -21,10 +24,33 @@ export function useActivity(refreshInterval = 5000) {
   useEffect(() => {
     refresh()
     const interval = setInterval(refresh, refreshInterval)
-    return () => clearInterval(interval)
+
+    // Socket.IO for real-time events
+    const socket = io(window.location.origin)
+    socketRef.current = socket
+
+    socket.on('tool_call', (event) => {
+      console.log('[LIVE] tool_call:', event)
+      setLiveEvents(prev => [event, ...prev].slice(0, 50))
+      // Merge into data
+      setData(prev => prev ? {
+        ...prev,
+        file_ops: [event, ...(prev.file_ops || [])].slice(0, 50)
+      } : prev)
+    })
+
+    socket.on('activity_update', (newData) => {
+      console.log('[LIVE] activity_update')
+      setData(newData)
+    })
+
+    return () => {
+      clearInterval(interval)
+      socket.disconnect()
+    }
   }, [refresh, refreshInterval])
 
-  return { data, loading, error, refresh }
+  return { data, loading, error, refresh, liveEvents }
 }
 
 export function useAlerts(refreshInterval = 30000) {
@@ -46,7 +72,24 @@ export function useAlerts(refreshInterval = 30000) {
   useEffect(() => {
     refresh()
     const interval = setInterval(refresh, refreshInterval)
-    return () => clearInterval(interval)
+
+    // Socket.IO for real-time alerts
+    const socket = io(window.location.origin)
+
+    socket.on('security_alert', (alert) => {
+      console.log('[LIVE] security_alert:', alert)
+      setAlerts(prev => [alert, ...prev])
+    })
+
+    socket.on('new_alerts', (newAlerts) => {
+      console.log('[LIVE] new_alerts:', newAlerts.length)
+      setAlerts(prev => [...newAlerts, ...prev])
+    })
+
+    return () => {
+      clearInterval(interval)
+      socket.disconnect()
+    }
   }, [refresh, refreshInterval])
 
   return { alerts, loading, refresh }
