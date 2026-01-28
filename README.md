@@ -75,15 +75,43 @@ cd moltbot-guardian
 
 ---
 
-## 📊 API
+## 📈 Observability (OpenTelemetry)
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/health` | Health check |
-| `GET /api/activity` | Recent tool calls, connections |
-| `GET /api/alerts` | Security alerts |
-| `GET /api/network/detailed` | Network analysis with threats |
-| `POST /api/sessions/kill` | Kill agent session |
+Guardian exports metrics and traces via OpenTelemetry for integration with your observability stack.
+
+### Quick Start with Grafana
+
+```bash
+# Start Guardian + OTEL Collector + Prometheus + Grafana
+docker-compose -f docker-compose.yml -f docker-compose.otel.yaml up -d
+```
+
+**Dashboards:**
+- Guardian UI: http://localhost:5050
+- Grafana: http://localhost:3000 (admin/guardian)
+- Prometheus: http://localhost:9090
+
+### Metrics Exported
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `moltbot_alerts_total` | Counter | Security alerts by severity/category |
+| `moltbot_tool_calls_total` | Counter | Tool calls by type and success |
+| `moltbot_tokens_total` | Counter | Token usage by model (input/output) |
+| `moltbot_cost_total` | Counter | API cost in USD |
+| `moltbot_connections_active` | Gauge | Active network connections |
+| `moltbot_gateway_connected` | Gauge | Gateway connection status |
+
+### Custom OTEL Backend
+
+Set these environment variables to export to your own collector:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://your-collector:4317
+OTEL_SERVICE_NAME=moltbot-guardian
+```
+
+Supports any OTLP-compatible backend: Grafana Cloud, Datadog, Honeycomb, Jaeger, etc.
 
 ---
 
