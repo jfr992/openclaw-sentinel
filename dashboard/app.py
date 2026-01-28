@@ -38,7 +38,7 @@ _dns_cache_ttl = 300  # 5 minutes
 
 def resolve_hostname(ip: str) -> str:
     """Resolve IP to hostname with caching."""
-    if not ip or ip in ['-', '', '0.0.0.0', '127.0.0.1', '::1']:
+    if not ip or ip in ['-', '', '0.0.0.0', '127.0.0.1', '::1']:  # nosec B104
         return None
 
     # Check cache
@@ -462,7 +462,7 @@ def get_detailed_network():
     # Also add hostname to individual connections and re-analyze with hostname
     for conn in result['connections']:
         remote_ip = conn.get('remote', '').split(':')[0] if conn.get('remote') else None
-        if remote_ip and remote_ip not in ['-', '', '0.0.0.0', '127.0.0.1']:
+        if remote_ip and remote_ip not in ['-', '', '0.0.0.0', '127.0.0.1']:  # nosec B104
             hostname = resolve_hostname(remote_ip)
             if hostname:
                 conn['hostname'] = hostname
