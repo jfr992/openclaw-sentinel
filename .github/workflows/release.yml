@@ -5,8 +5,31 @@ on:
     tags:
       - 'v*'
 
+# Security scan must pass before release
 jobs:
+  security-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Security scan
+        run: |
+          pip install safety bandit
+          cd dashboard
+          pip install -r requirements.txt
+          echo "🔍 Running safety check..."
+          safety check --full-report
+          echo "🔍 Running bandit scan..."
+          bandit -r . -ll -x ./venv
+          echo "✅ Security scan passed"
+
   build:
+    needs: security-gate
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

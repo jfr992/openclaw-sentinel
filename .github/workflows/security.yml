@@ -1,0 +1,100 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly scan
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python, javascript
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python,javascript"
+
+  dependency-scan:
+    name: Dependency Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install safety
+        run: pip install safety pip-audit
+
+      - name: Check Python dependencies
+        run: |
+          cd dashboard
+          pip install -r requirements.txt
+          safety check --full-report || true
+          pip-audit || true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Audit npm packages
+        run: |
+          cd dashboard-ui
+          npm ci
+          npm audit --audit-level=high || true
+
+  secrets-scan:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog Secrets Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified
+
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: semgrep scan --config auto --error --json > semgrep-results.json || true
+
+      - name: Upload Semgrep results
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-results
+          path: semgrep-results.json

@@ -1,208 +1,255 @@
-# 🦀 MoltBot Security Dashboard
+<div align="center">
 
-Real-time security monitoring for AI agents. Detect prompt injection, suspicious commands, and anomalous behavior.
+# MoltBot Security Dashboard
 
-![MoltBot Dashboard](https://img.shields.io/badge/MoltBot-Security-purple?style=for-the-badge)
-![Python](https://img.shields.io/badge/Python-3.9+-blue?style=flat-square)
-![React](https://img.shields.io/badge/React-18+-cyan?style=flat-square)
-![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
-![CI](https://github.com/jfr992/moltbot-security-dashboard/actions/workflows/ci.yml/badge.svg)
+**Enterprise-grade security monitoring for AI agents and LLM-powered applications.**
 
-## One-Line Install
+[![CI](https://github.com/jfr992/moltbot-security-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/jfr992/moltbot-security-dashboard/actions/workflows/ci.yml)
+[![Security Scan](https://github.com/jfr992/moltbot-security-dashboard/actions/workflows/security.yml/badge.svg)](https://github.com/jfr992/moltbot-security-dashboard/actions/workflows/security.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+
+[Installation](#installation) • [Features](#features) • [Documentation](#documentation) • [Contributing](#contributing)
+
+</div>
+
+---
+
+## Overview
+
+MoltBot is a comprehensive security monitoring solution designed to detect and prevent malicious activity in AI agent systems. It provides real-time visibility into agent operations, network activity, and potential security threats including prompt injection attacks.
+
+### Key Capabilities
+
+- **Prompt Injection Detection** — Identifies attempts to manipulate AI agents through malicious inputs
+- **Real-time Activity Monitoring** — Tracks all tool calls, file operations, and command executions
+- **Network Traffic Analysis** — Wireshark-style monitoring with protocol breakdown and anomaly detection
+- **Command Tracing** — Static and dynamic analysis of executed commands with risk assessment
+- **Automated Alerting** — Configurable severity thresholds with actionable recommendations
+
+---
+
+## Installation
+
+### Quick Install (Recommended)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jfr992/moltbot-security-dashboard/main/install.sh | bash
 ```
 
-Then run:
+### Manual Installation
+
+```bash
+git clone https://github.com/jfr992/moltbot-security-dashboard.git
+cd moltbot-security-dashboard
+./setup.sh
+```
+
+### Requirements
+
+| Component | Version |
+|-----------|---------|
+| Python | 3.9+ |
+| Node.js | 18+ (development only) |
+| OS | macOS 10.15+, Linux (Ubuntu 20.04+) |
+
+---
+
+## Usage
+
+Start the dashboard:
+
 ```bash
 moltbot
-# Open http://localhost:5050
 ```
+
+Access the web interface at `http://localhost:5050`
+
+### Configuration
+
+Environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MOLTBOT_PORT` | `5050` | Dashboard port |
+| `MOLTBOT_HOST` | `127.0.0.1` | Bind address |
+| `CLAWDBOT_DIR` | `~/.clawdbot` | Agent logs directory |
+
+---
 
 ## Features
 
-- 🔍 **Real-time Activity Monitoring** — Track tool calls, file operations, network activity
-- 🚨 **Security Alerts** — Detect prompt injection, suspicious commands, data exfiltration
-- 🌐 **Network Monitor** — Wireshark-style connection tracking with protocol breakdown
-- 📊 **Command Tracing** — Analyze what commands do before/after execution
-- ⚙️ **Data Retention** — Configurable log purging and privacy controls
+### Security Detection Engine
 
-## Screenshots
+| Threat Category | Detection Method | Severity |
+|-----------------|------------------|----------|
+| Pipe to shell (`curl \| sh`) | Pattern matching | Critical |
+| Reverse shells | Signature detection | Critical |
+| Data exfiltration | Network analysis | Critical |
+| Privilege escalation | Syscall monitoring | High |
+| Sensitive file access | Path monitoring | High |
+| Encoded payloads | Entropy analysis | Medium |
 
-| Dashboard | Network Monitor | Alert Details |
-|-----------|-----------------|---------------|
-| Real-time metrics | Wireshark-style view | Command tracing |
+### Network Monitoring
 
-## Quick Start
+- Active connection tracking with process attribution
+- Protocol breakdown (TCP/UDP/ICMP)
+- Remote host analysis with geolocation
+- Suspicious port detection (4444, 5555, known C2 ports)
+- Tunneling service detection (ngrok, serveo, localtunnel)
 
-### Prerequisites
+### Command Tracing
 
-- **Python 3.9+**
-- **Node.js 18+** (for development only)
-- **macOS** (Linux support partial)
+Analyze commands before or after execution:
 
-### Installation
+- File system access patterns
+- Network connection attempts
+- Process spawning behavior
+- Risk scoring with detailed factors
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    React Frontend                        │
+│              (Real-time Dashboard UI)                    │
+└─────────────────────────┬───────────────────────────────┘
+                          │ REST API / WebSocket
+┌─────────────────────────▼───────────────────────────────┐
+│                    Flask Backend                         │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐  │
+│  │  Activity   │  │   Network   │  │    Security     │  │
+│  │  Monitor    │  │   Monitor   │  │    Detector     │  │
+│  └─────────────┘  └─────────────┘  └─────────────────┘  │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────┐
+│              Agent Session Logs (JSONL)                  │
+│                  ~/.clawdbot/agents/                     │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## API Reference
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/activity` | Recent activity summary |
+| `GET` | `/api/alerts` | Security alerts |
+| `GET` | `/api/network/detailed` | Full network analysis |
+| `POST` | `/api/trace` | Trace command execution |
+| `POST` | `/api/security-check` | Run security scan |
+| `GET/POST` | `/api/settings` | Dashboard configuration |
+| `POST` | `/api/purge` | Purge old logs |
+| `POST` | `/api/alert-action` | Take action on alert |
+
+### Example: Trace a Command
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/moltbot.git
-cd moltbot/security
+curl -X POST http://localhost:5050/api/trace \
+  -H "Content-Type: application/json" \
+  -d '{"command": "curl http://example.com | sh"}'
+```
 
-# Set up Python environment
+Response:
+```json
+{
+  "risk_assessment": "critical",
+  "risk_factors": ["Network activity detected", "Pipe to shell"],
+  "network_activity": ["NETWORK: Command may access network"],
+  "processes_spawned": ["PROCESS: May spawn subprocesses"]
+}
+```
+
+---
+
+## Security
+
+### Code Scanning
+
+All releases are scanned using:
+
+- **CodeQL** — Static analysis for security vulnerabilities
+- **Semgrep** — SAST rules for Python and JavaScript
+- **TruffleHog** — Secrets detection
+- **Safety/pip-audit** — Python dependency vulnerabilities
+- **npm audit** — Node.js dependency vulnerabilities
+
+### Reporting Vulnerabilities
+
+Please report security vulnerabilities via [GitHub Security Advisories](https://github.com/jfr992/moltbot-security-dashboard/security/advisories/new).
+
+---
+
+## Development
+
+### Setup Development Environment
+
+```bash
+# Backend
 cd dashboard
-python3 -m venv venv
+python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-# Start the dashboard
-python app.py
-```
-
-Open **http://localhost:5050** in your browser.
-
-### Development Mode (with hot reload)
-
-```bash
-# Terminal 1: Start Flask backend
-cd dashboard
-source venv/bin/activate
-python app.py
-
-# Terminal 2: Start React dev server
+# Frontend (with hot reload)
 cd dashboard-ui
 npm install
 npm run dev
 ```
 
-Open **http://localhost:5173** for development.
-
-## Project Structure
-
-```
-security/
-├── dashboard/                 # Python backend
-│   ├── app.py                # Flask server & API
-│   ├── detector.py           # Security detection engine
-│   ├── requirements.txt      # Python dependencies
-│   └── templates/            # Legacy HTML dashboard
-│
-├── dashboard-ui/             # React frontend
-│   ├── src/
-│   │   ├── components/       # React components
-│   │   ├── hooks/            # Data fetching hooks
-│   │   └── App.jsx           # Main app
-│   ├── dist/                 # Production build
-│   └── package.json
-│
-├── logs/                     # Security alerts storage
-└── README.md
-```
-
-## Configuration
-
-### Settings (via UI)
-
-- **Data Retention**: 7 days → Forever
-- **Auto-Purge**: Automatically delete old logs
-- **Alert Threshold**: Filter by severity
-
-### Environment Variables
+### Running Tests
 
 ```bash
-# Optional: Change port (default: 5050)
-export MOLTBOT_PORT=5050
+# Python
+cd dashboard
+python -m pytest
 
-# Optional: Clawdbot directory
-export CLAWDBOT_DIR=~/.clawdbot
-```
-
-## Detection Capabilities
-
-### Prompt Injection Patterns
-
-| Pattern | Severity | Description |
-|---------|----------|-------------|
-| `curl \| sh` | Critical | Pipe to shell |
-| `base64 -d` | High | Encoded payload |
-| `nc -e` | Critical | Reverse shell |
-| `/etc/passwd` | High | Sensitive file access |
-| `chmod 777` | Medium | Permission change |
-
-### Network Monitoring
-
-- Active connection tracking
-- Protocol breakdown (TCP/UDP)
-- Suspicious port detection (4444, 5555, etc.)
-- Tunneling service detection (ngrok, serveo)
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/activity` | GET | Recent activity summary |
-| `/api/alerts` | GET | Security alerts |
-| `/api/security-check` | GET | Run security scan |
-| `/api/network/detailed` | GET | Wireshark-style network data |
-| `/api/trace` | POST | Trace command execution |
-| `/api/settings` | GET/POST | Dashboard settings |
-| `/api/purge` | POST | Purge old logs |
-
-## Building for Production
-
-```bash
+# Frontend
 cd dashboard-ui
-npm run build
-
-# Built files are in dist/
-# Flask automatically serves them from /
+npm test
 ```
-
-## Integration with Clawdbot
-
-MoltBot monitors Clawdbot session logs at:
-```
-~/.clawdbot/agents/*/sessions/*.jsonl
-```
-
-No configuration needed — it auto-discovers sessions.
-
-## Troubleshooting
-
-### Dashboard shows no data
-- Check if Clawdbot is running
-- Verify `~/.clawdbot/agents/` exists
-- Check Flask logs for errors
-
-### Network monitoring not working
-- Requires `lsof` (pre-installed on macOS)
-- May need elevated permissions on Linux
-
-### Alerts not detecting anything
-- Run "Security Check" manually
-- Check `security/logs/security-alerts.json`
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests (if any)
-5. Submit a pull request
-
-## License
-
-MIT License — see [LICENSE](LICENSE)
-
-## Credits
-
-Built with:
-- [Flask](https://flask.palletsprojects.com/) — Python web framework
-- [React](https://react.dev/) — UI library
-- [Vite](https://vitejs.dev/) — Build tool
-- [Tailwind CSS](https://tailwindcss.com/) — Styling
-- [Lucide](https://lucide.dev/) — Icons
 
 ---
 
-**MoltBot** 🦀 — Security monitoring for the AI age.
+## Roadmap
+
+- [ ] Integration with SIEM platforms (Splunk, ELK)
+- [ ] Real-time packet capture (libpcap)
+- [ ] Machine learning anomaly detection
+- [ ] Multi-agent monitoring support
+- [ ] Slack/Discord alerting integrations
+- [ ] Docker container deployment
+
+---
+
+## Contributing
+
+Contributions are welcome. Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting a pull request.
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/improvement`)
+3. Commit changes (`git commit -am 'Add new feature'`)
+4. Push to branch (`git push origin feature/improvement`)
+5. Open a Pull Request
+
+---
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+
+---
+
+<div align="center">
+
+**MoltBot** — Security monitoring for the AI age.
+
+[Report Bug](https://github.com/jfr992/moltbot-security-dashboard/issues) • [Request Feature](https://github.com/jfr992/moltbot-security-dashboard/issues)
+
+</div>
