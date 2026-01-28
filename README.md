@@ -7,15 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
-[Features](#features) • [Install](#installation) • [Screenshots](#screenshots) • [Docs](#documentation)
-
 </div>
-
----
-
-<p align="center">
-  <img src="docs/images/dashboard.png" alt="MoltBot Security Dashboard" width="800"/>
-</p>
 
 ---
 
@@ -23,32 +15,37 @@
 
 An **optional security layer** for [molt.bot](https://molt.bot) that monitors your AI agent's activity in real-time:
 
-- 👁️ **See everything** your agent does — tool calls, file operations, network connections
-- 🚨 **Get alerts** for suspicious patterns — reverse shells, data exfiltration, privilege escalation
-- 📊 **Learn baselines** — detects anomalies based on normal behavior patterns
-- 🔐 **Encrypted baselines** — optional AES-256-GCM encryption for sensitive environments
+- 👁️ **Activity Log** — See every tool call (exec, read, write, browser)
+- 🚨 **Security Alerts** — Detect reverse shells, data exfil, privilege escalation
+- 📊 **Baseline Learning** — Learns normal patterns, flags anomalies
+- 🔐 **Encrypted Baselines** — Optional AES-256-GCM for sensitive environments
+- 🌐 **Network Monitor** — Track active connections with process attribution
 
-This dashboard reads from `~/.clawdbot` (where molt.bot stores session logs) and provides visibility into what your agent is doing.
+Reads from `~/.clawdbot` (where molt.bot stores session logs).
+
+---
+
+## vs Crabwalk
+
+| | **This (Security)** | **[Crabwalk](https://github.com/luccast/crabwalk)** |
+|---|---|---|
+| **Purpose** | Detect threats | Watch agents work |
+| **View** | Activity log + alerts | Node graph visualization |
+| **Focus** | Security monitoring | Real-time streaming |
+| **Use case** | "Is my agent doing something bad?" | "What is my agent doing?" |
+
+**They're complementary** — use both for full visibility.
 
 ---
 
 ## Installation
 
-### Quick Install
-
 ```bash
-curl -fsSL https://raw.githubusercontent.com/moltbot/security-dashboard/main/install.sh | bash
+git clone https://github.com/jfr992/moltbot-security-dashboard.git ~/.moltbot-security
+cd ~/.moltbot-security && ./setup.sh
 ```
 
-### Manual Install
-
-```bash
-git clone https://github.com/moltbot/security-dashboard.git ~/.moltbot-security
-cd ~/.moltbot-security
-./setup.sh
-```
-
-### Start the Dashboard
+### Start
 
 ```bash
 ~/.moltbot-security/start
@@ -59,45 +56,29 @@ cd ~/.moltbot-security
 
 ## Features
 
-| Feature | Description |
-|---------|-------------|
-| **Activity Log** | Real-time feed of all tool calls (exec, read, write, browser, etc.) |
-| **Security Alerts** | Pattern matching for dangerous commands + behavioral anomaly detection |
-| **Network Monitor** | Active connections with process attribution |
-| **File Operations** | Track reads, writes, and edits across the filesystem |
-| **Baseline Learning** | Learns "normal" patterns over 24h, flags deviations |
-| **Encrypted Storage** | Optional AES-256-GCM encryption for baseline data |
-
 ### Detection Patterns
 
-| Threat | Detection |
-|--------|-----------|
+| Threat | Method |
+|--------|--------|
 | Pipe to shell (`curl \| sh`) | Pattern matching |
 | Reverse shells | Signature detection |
 | Data exfiltration | Network + file analysis |
 | Privilege escalation | Command monitoring |
 | Sensitive file access | Path monitoring |
+| Behavioral anomalies | Baseline deviation |
 
----
+### Dashboard Sections
 
-## Screenshots
-
-<details>
-<summary>📊 Main Dashboard</summary>
-
-![Dashboard](docs/images/dashboard.png)
-
-</details>
+- **Tool Calls** — Count of agent actions in last 24h
+- **Connections** — Active network connections
+- **File Ops** — Recent read/write/edit operations
+- **Alerts** — Security issues detected
+- **Activity Log** — Real-time feed of all tool calls
+- **Network Activity** — Connections grouped by process
 
 ---
 
 ## Configuration
-
-The dashboard reads from:
-- `~/.clawdbot/agents/` — Session logs (JSONL)
-- `~/.clawdbot/security/` — Baseline data, settings
-
-### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -109,39 +90,18 @@ The dashboard reads from:
 
 ## Security
 
-This tool runs **locally only** — no data leaves your machine.
+Runs **locally only** — no data leaves your machine.
 
-For local vulnerability scanning:
+Local vulnerability scanning:
 ```bash
 ./scripts/security-check.sh
-```
-
-This runs:
-- **Bandit** — Python SAST
-- **pip-audit** — Dependency vulnerabilities
-- **npm audit** — JS dependencies
-- **detect-secrets** — Secret detection
-
----
-
-## Development
-
-```bash
-# Setup
-./setup.sh
-
-# Run from source
-./start.sh
-
-# Build frontend (requires Node.js)
-cd dashboard-ui && npm install && npm run build
 ```
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE)
+MIT
 
 ---
 

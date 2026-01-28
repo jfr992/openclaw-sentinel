@@ -8,7 +8,7 @@
 set -e
 
 INSTALL_DIR="${MOLTBOT_SECURITY_DIR:-$HOME/.moltbot-security}"
-REPO_URL="https://github.com/moltbot/security-dashboard"
+REPO_URL="https://github.com/jfr992/moltbot-security-dashboard"
 
 echo ""
 echo "  🦀 MoltBot Security Dashboard"
