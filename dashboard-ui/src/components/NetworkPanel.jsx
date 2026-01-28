@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Globe, Shield, AlertTriangle, CheckCircle, Radio, Wifi, Skull, AlertOctagon, Activity, ExternalLink } from 'lucide-react'
 
-// Severity color mapping
+// Severity color mapping with animations
 const SEVERITY_COLORS = {
-  critical: { bg: 'bg-red-500/20', border: 'border-red-500/50', text: 'text-red-400', icon: Skull },
-  high: { bg: 'bg-orange-500/20', border: 'border-orange-500/50', text: 'text-orange-400', icon: AlertOctagon },
-  medium: { bg: 'bg-yellow-500/20', border: 'border-yellow-500/50', text: 'text-yellow-400', icon: AlertTriangle },
-  low: { bg: 'bg-blue-500/20', border: 'border-blue-500/50', text: 'text-blue-400', icon: Activity },
+  critical: { bg: 'bg-red-500/20', border: 'border-red-500/50', text: 'text-red-400', icon: Skull, pulse: 'critical-pulse', glow: 'glow-red' },
+  high: { bg: 'bg-orange-500/20', border: 'border-orange-500/50', text: 'text-orange-400', icon: AlertOctagon, pulse: 'high-pulse', glow: '' },
+  medium: { bg: 'bg-yellow-500/20', border: 'border-yellow-500/50', text: 'text-yellow-400', icon: AlertTriangle, pulse: '', glow: '' },
+  low: { bg: 'bg-blue-500/20', border: 'border-blue-500/50', text: 'text-blue-400', icon: Activity, pulse: '', glow: '' },
 }
 
 // Known safe services for categorization
@@ -423,14 +423,14 @@ function DetailedNetworkView({ data, loading, onRefresh }) {
                     const SeverityIcon = colors.icon
 
                     return (
-                      <div key={i} className={`p-3 ${colors.bg} border ${colors.border} rounded-lg`}>
+                      <div key={i} className={`p-3 ${colors.bg} border ${colors.border} rounded-lg ${colors.pulse} ${colors.glow} animate-slide-in-right transition-all duration-300`}>
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <SeverityIcon className={`w-5 h-5 ${colors.text}`} />
+                            <SeverityIcon className={`w-5 h-5 ${colors.text} ${severity === 'critical' ? 'animate-pulse' : ''}`} />
                             <p className="text-white font-mono font-semibold">{conn.process}</p>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className={`text-xs ${colors.text} font-bold uppercase px-2 py-0.5 rounded ${colors.bg}`}>
+                            <span className={`text-xs ${colors.text} font-bold uppercase px-2 py-0.5 rounded ${colors.bg} ${severity === 'critical' || severity === 'high' ? 'badge-' + severity : ''}`}>
                               {severity}
                             </span>
                             <span className="badge badge-medium">{conn.state}</span>
@@ -451,7 +451,7 @@ function DetailedNetworkView({ data, loading, onRefresh }) {
                         {conn.threats && conn.threats.length > 0 && (
                           <div className="mt-2 pt-2 border-t border-shell-700/50 space-y-1">
                             {conn.threats.map((threat, ti) => (
-                              <div key={ti} className="text-xs">
+                              <div key={ti} className="text-xs animate-fade-in">
                                 <p className={`font-semibold ${colors.text}`}>
                                   ⚠️ {threat.name}
                                 </p>

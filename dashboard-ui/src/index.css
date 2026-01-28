@@ -465,3 +465,256 @@ body {
   color: var(--color-threat-400);
   filter: drop-shadow(0 0 8px var(--color-glow-red));
 }
+
+/* =============================================================================
+   DYNAMIC ANIMATIONS - THREAT DETECTION & LIVE UPDATES
+============================================================================= */
+
+/* Threat flash animation for newly detected threats */
+@keyframes threat-flash {
+  0%, 100% { background-color: transparent; }
+  25% { background-color: rgba(239, 68, 68, 0.3); }
+  50% { background-color: rgba(239, 68, 68, 0.1); }
+  75% { background-color: rgba(239, 68, 68, 0.2); }
+}
+
+.threat-flash {
+  animation: threat-flash 1s ease-out;
+}
+
+/* Critical threat pulsing border */
+@keyframes critical-pulse {
+  0%, 100% {
+    border-color: rgba(220, 38, 38, 0.4);
+    box-shadow: 0 0 10px rgba(220, 38, 38, 0.2);
+  }
+  50% {
+    border-color: rgba(220, 38, 38, 0.8);
+    box-shadow: 0 0 25px rgba(220, 38, 38, 0.5);
+  }
+}
+
+.critical-pulse {
+  animation: critical-pulse 1.5s ease-in-out infinite;
+}
+
+/* High severity pulse */
+@keyframes high-pulse {
+  0%, 100% {
+    border-color: rgba(249, 115, 22, 0.4);
+    box-shadow: 0 0 10px rgba(249, 115, 22, 0.2);
+  }
+  50% {
+    border-color: rgba(249, 115, 22, 0.7);
+    box-shadow: 0 0 20px rgba(249, 115, 22, 0.4);
+  }
+}
+
+.high-pulse {
+  animation: high-pulse 2s ease-in-out infinite;
+}
+
+/* Live data update blink */
+@keyframes data-blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+.data-updating {
+  animation: data-blink 0.3s ease;
+}
+
+/* Connection activity indicator */
+@keyframes connection-pulse {
+  0% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.5); opacity: 0.3; }
+  100% { transform: scale(1); opacity: 0.6; }
+}
+
+.connection-active::before {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--color-neon-cyan);
+  border-radius: 50%;
+  animation: connection-pulse 1s ease-in-out infinite;
+}
+
+/* Network flow animation */
+@keyframes network-flow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+.network-flow-bg {
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(0, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: network-flow 2s linear infinite;
+}
+
+/* Slide in from right for new items */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+/* Scale pop for metric updates */
+@keyframes metric-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.metric-pop {
+  animation: metric-pop 0.3s ease-out;
+}
+
+/* Shimmer loading effect */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(90deg,
+    var(--color-shell-800) 25%,
+    var(--color-shell-700) 50%,
+    var(--color-shell-800) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Radar sweep effect */
+@keyframes radar-sweep {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.radar-sweep {
+  animation: radar-sweep 4s linear infinite;
+}
+
+/* Typing cursor for live logs */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.cursor-blink::after {
+  content: '▋';
+  animation: cursor-blink 1s step-end infinite;
+  color: var(--color-neon-cyan);
+}
+
+/* Alert severity specific animations */
+.alert-critical {
+  animation: critical-pulse 1.5s ease-in-out infinite;
+}
+
+.alert-high {
+  animation: high-pulse 2s ease-in-out infinite;
+}
+
+/* Threat badge glow */
+@keyframes badge-glow-critical {
+  0%, 100% { box-shadow: 0 0 5px rgba(220, 38, 38, 0.5); }
+  50% { box-shadow: 0 0 15px rgba(220, 38, 38, 0.8); }
+}
+
+@keyframes badge-glow-high {
+  0%, 100% { box-shadow: 0 0 5px rgba(249, 115, 22, 0.5); }
+  50% { box-shadow: 0 0 12px rgba(249, 115, 22, 0.7); }
+}
+
+.badge-critical {
+  animation: badge-glow-critical 2s ease-in-out infinite;
+}
+
+.badge-high {
+  animation: badge-glow-high 2.5s ease-in-out infinite;
+}
+
+/* Smooth height transitions for expanding sections */
+.expand-collapse {
+  transition: max-height 0.3s ease-out, opacity 0.2s ease;
+  overflow: hidden;
+}
+
+/* Data table row hover glow */
+.table-row-glow:hover {
+  box-shadow: inset 0 0 30px rgba(0, 255, 255, 0.05);
+}
+
+.table-row-threat:hover {
+  box-shadow: inset 0 0 30px rgba(239, 68, 68, 0.1);
+}
+
+/* Real-time counter animation */
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.count-animate {
+  animation: count-up 0.3s ease-out;
+}
+
+/* Status indicator breathing */
+@keyframes breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.95); }
+}
+
+.breathe {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+/* Notification slide-in */
+@keyframes notification-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.notification-enter {
+  animation: notification-in 0.4s ease-out;
+}
+
+/* Progress bar animation */
+@keyframes progress-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.progress-indeterminate::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 50%;
+  background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.5), transparent);
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+}

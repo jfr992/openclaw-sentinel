@@ -4,28 +4,32 @@ import { runSecurityCheck, getAlertDetails, traceCommand, alertAction } from '..
 
 const severityConfig = {
   critical: {
-    border: 'alert-item-critical',
+    border: 'alert-item-critical alert-critical',
     badge: 'badge-critical',
-    dot: 'bg-threat-600',
+    dot: 'bg-threat-600 animate-pulse',
     icon: Skull,
+    glow: 'glow-red',
   },
   high: {
-    border: 'alert-item-high',
+    border: 'alert-item-high alert-high',
     badge: 'badge-high',
     dot: 'bg-threat-500',
     icon: AlertTriangle,
+    glow: '',
   },
   medium: {
     border: 'alert-item-medium',
     badge: 'badge-medium',
     dot: 'bg-status-warn',
     icon: Zap,
+    glow: '',
   },
   low: {
     border: 'alert-item',
     badge: 'badge-low',
     dot: 'bg-status-safe',
     icon: Shield,
+    glow: '',
   },
 }
 
