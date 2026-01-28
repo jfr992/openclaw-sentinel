@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Zap, Globe, Folder, Shield, ShieldAlert, TrendingUp, AlertTriangle } from 'lucide-react'
 
 function MetricCard({ title, value, subtitle, icon: Icon, variant, compact, pulse }) {
@@ -73,23 +74,54 @@ function MetricCard({ title, value, subtitle, icon: Icon, variant, compact, puls
 }
 
 export default function MetricCards({ data, alertCount, compact }) {
+  const [network, setNetwork] = useState(null)
+  const [usage, setUsage] = useState(null)
+
+  useEffect(() => {
+    async function fetchExtras() {
+      try {
+        const [netRes, usageRes] = await Promise.all([
+          fetch('/api/network/detailed'),
+          fetch('/api/usage')
+        ])
+        if (netRes.ok) setNetwork(await netRes.json())
+        if (usageRes.ok) setUsage(await usageRes.json())
+      } catch {}
+    }
+    fetchExtras()
+    const interval = setInterval(fetchExtras, 30000) // Every 30s instead of 10s
+    return () => clearInterval(interval)
+  }, [])
+
   const hasAlerts = alertCount > 0
   const hasCritical = alertCount >= 5
+
+  // Get latest tool call timestamp for "active" indicator
+  const latestTool = data?.tool_calls?.[0]?.timestamp
+  const isActive = latestTool && (Date.now() - new Date(latestTool).getTime()) < 60000
+
+  // Use detailed network stats
+  const connCount = network?.stats?.total_connections ?? data?.connections?.length ?? '-'
+  const established = network?.stats?.established ?? 0
+
+  // Use messages analyzed as better metric
+  const msgCount = usage?.messages_analyzed ?? data?.tool_calls?.length ?? '-'
 
   return (
     <div className={`grid gap-4 ${compact ? 'grid-cols-4' : 'grid-cols-4'}`}>
       <MetricCard
-        title="Tool Calls"
-        value={data?.tool_calls?.length ?? '-'}
-        subtitle="Last 24 hours"
+        title="Messages"
+        value={msgCount}
+        subtitle={isActive ? '● Active now' : 'Total analyzed'}
         icon={Zap}
         variant="blue"
         compact={compact}
+        pulse={isActive}
       />
       <MetricCard
         title="Connections"
-        value={data?.connections?.length ?? '-'}
-        subtitle="Active network"
+        value={connCount}
+        subtitle={established > 0 ? `${established} established` : 'Active network'}
         icon={Globe}
         variant="cyan"
         compact={compact}
@@ -97,7 +129,7 @@ export default function MetricCards({ data, alertCount, compact }) {
       <MetricCard
         title="File Ops"
         value={data?.file_ops?.length ?? '-'}
-        subtitle="Read/Write/Exec"
+        subtitle="Recent operations"
         icon={Folder}
         variant="purple"
         compact={compact}

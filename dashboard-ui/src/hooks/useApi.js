@@ -18,23 +18,20 @@ export function useActivity(refreshInterval = 5000) {
       setData(json)
       setError(null)
 
-      // Check gateway status to determine mode
-      try {
-        const gwRes = await fetch('/api/gateway/status')
-        const gwStatus = await gwRes.json()
-        if (gwStatus.connected) {
-          setConnectionMode('live')
-          setGatewayConnected(true)
-        } else {
-          setConnectionMode('polling')
-          setGatewayConnected(false)
-        }
-      } catch {
-        // If gateway check fails, fall back to event-based detection
-        const now = Date.now()
-        if (lastLiveEventRef.current && (now - lastLiveEventRef.current) < 30000) {
-          setConnectionMode('live')
-        } else if (!error) {
+      // Only check gateway status every 10 seconds, not every refresh
+      if (!lastLiveEventRef.current || Date.now() - lastLiveEventRef.current > 10000) {
+        try {
+          const gwRes = await fetch('/api/gateway/status')
+          const gwStatus = await gwRes.json()
+          if (gwStatus.connected) {
+            setConnectionMode('live')
+            setGatewayConnected(true)
+          } else {
+            setConnectionMode('polling')
+            setGatewayConnected(false)
+          }
+          lastLiveEventRef.current = Date.now()
+        } catch {
           setConnectionMode('polling')
         }
       }
