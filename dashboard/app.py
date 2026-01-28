@@ -881,7 +881,7 @@ def api_baseline_whitelist():
 # --- Threat Intelligence API ---
 
 @app.route('/api/threat-intel')
-def api_threat_intel():
+def api_threat_intel_all():
     """Get all threat intelligence patterns."""
     intel = get_threat_intel()
     return jsonify({

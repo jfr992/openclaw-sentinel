@@ -98,7 +98,7 @@ class NotificationManager:
                 data=data,
                 headers={'Content-Type': 'application/json'}
             )
-            with urllib.request.urlopen(req, timeout=10) as response:
+            with urllib.request.urlopen(req, timeout=10) as response:  # nosec B310 - webhook URL is user-configured
                 return response.status == 200
         except Exception as e:
             print(f"[Notifications] Webhook error: {e}")
