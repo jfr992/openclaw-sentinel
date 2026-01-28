@@ -5,8 +5,8 @@ on:
     tags:
       - 'v*'
 
-# Security scan must pass before release
 jobs:
+  # Security gate - must pass before building release artifacts
   security-gate:
     runs-on: ubuntu-latest
     steps:
