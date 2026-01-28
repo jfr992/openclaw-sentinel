@@ -10,7 +10,9 @@ from pathlib import Path
 from typing import Callable, Optional, Dict, Any, List
 import websocket
 
-CLAWDBOT_CONFIG = Path.home() / '.clawdbot' / 'clawdbot.json'
+# Config path - check CLAWDBOT_DIR env var first (for Docker), then default
+_clawdbot_dir = os.environ.get('CLAWDBOT_DIR', str(Path.home() / '.clawdbot'))
+CLAWDBOT_CONFIG = Path(_clawdbot_dir) / 'clawdbot.json'
 
 
 def create_connect_params(token: Optional[str] = None) -> Dict[str, Any]:

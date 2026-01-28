@@ -1,13 +1,13 @@
 # MoltBot Guardian - Docker Compose
-# Usage: docker compose up -d
-# For full network visibility, use docker-compose.host.yml instead
+# Usage: CLAWDBOT_API_TOKEN=$(jq -r '.gateway.auth.token' ~/.clawdbot/clawdbot.json) docker compose up -d
 
 services:
   guardian:
     build: .
     image: moltbot-security-dashboard-guardian:latest
     container_name: moltbot-guardian
-    network_mode: host
+    ports:
+      - "5050:5050"
     volumes:
       - ~/.clawdbot:/data:ro
       - guardian-data:/home/moltbot
@@ -17,6 +17,7 @@ services:
       CLAWDBOT_DIR: "/data"
       # Required for gateway WebSocket connection
       CLAWDBOT_API_TOKEN: "${CLAWDBOT_API_TOKEN}"
+      CLAWDBOT_URL: "ws://host.docker.internal:18789"
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
