@@ -1,4 +1,4 @@
-import { Shield, Brain, Activity, DollarSign } from 'lucide-react'
+import { Shield, Brain, Activity, DollarSign, Wifi, WifiOff } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { io } from 'socket.io-client'
 
@@ -11,11 +11,21 @@ function formatTimeAgo(timestamp) {
   return 'over 1h ago'
 }
 
-export default function Header() {
+export default function Header({ alertCount = 0 }) {
   const [time, setTime] = useState(new Date())
   const [baseline, setBaseline] = useState(null)
-  const [securityStatus, setSecurityStatus] = useState({ status: 'ok', alert_count: 0 })
+  const [securityStatus, setSecurityStatus] = useState({ status: 'ok', alert_count: 0, timestamp: null })
   const [usage, setUsage] = useState(null)
+  const [gateway, setGateway] = useState({ connected: false })
+
+  // Sync alert count from parent
+  useEffect(() => {
+    setSecurityStatus(prev => ({
+      ...prev,
+      status: alertCount > 0 ? 'alert' : 'ok',
+      alert_count: alertCount
+    }))
+  }, [alertCount])
 
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 1000)
@@ -42,7 +52,22 @@ export default function Header() {
       } catch (e) {}
     }
     fetchUsage()
-    const interval = setInterval(fetchUsage, 60000) // Update every minute
+    const interval = setInterval(fetchUsage, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Fetch gateway status
+  useEffect(() => {
+    async function fetchGateway() {
+      try {
+        const res = await fetch('/api/gateway/status')
+        if (res.ok) setGateway(await res.json())
+      } catch (e) {
+        setGateway({ connected: false })
+      }
+    }
+    fetchGateway()
+    const interval = setInterval(fetchGateway, 10000)
     return () => clearInterval(interval)
   }, [])
 
@@ -52,15 +77,6 @@ export default function Header() {
     socket.on('security_status', (data) => {
       setSecurityStatus(data)
     })
-
-    fetch('/api/alerts')
-      .then(res => res.json())
-      .then(alerts => {
-        if (alerts.length > 0) {
-          setSecurityStatus(prev => ({ ...prev, status: 'alert', alert_count: alerts.length }))
-        }
-      })
-      .catch(() => {})
 
     return () => socket.disconnect()
   }, [])
@@ -92,6 +108,25 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Gateway Connection Status */}
+        <div
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+            gateway.connected
+              ? 'bg-neon-cyan/10 border-neon-cyan/30'
+              : 'bg-shell-800 border-shell-600'
+          }`}
+          title={gateway.connected ? 'Connected to Clawdbot gateway' : 'Gateway disconnected - no live events'}
+        >
+          {gateway.connected ? (
+            <Wifi className="w-4 h-4 text-neon-cyan" />
+          ) : (
+            <WifiOff className="w-4 h-4 text-shell-500" />
+          )}
+          <span className={`text-xs font-mono ${gateway.connected ? 'text-neon-cyan' : 'text-shell-500'}`}>
+            {gateway.connected ? 'LIVE' : 'OFFLINE'}
+          </span>
+        </div>
+
         {/* Baseline Status */}
         {baseline && (
           <div

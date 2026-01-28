@@ -110,22 +110,22 @@ export default function AlertsPanel({ alerts, onRefresh, dimmed, expanded }) {
                     console.error('Failed to clear alerts:', e)
                   }
                 }}
-                className="btn-secondary text-xs text-threat-400 border-threat-500/30 hover:bg-threat-500/10"
+                className="text-[10px] px-1.5 py-0.5 rounded bg-shell-800 border border-threat-500/30 text-threat-400 hover:bg-threat-500/10 font-mono transition-colors"
               >
-                Dismiss All
+                Clear
               </button>
             )}
             <button
               onClick={handleScan}
               disabled={scanning}
-              className="btn-secondary text-xs disabled:opacity-50"
+              className="text-[10px] px-1.5 py-0.5 rounded bg-shell-800 border border-shell-600 text-shell-400 hover:bg-shell-700 hover:text-white font-mono transition-colors disabled:opacity-50"
             >
               {scanning ? (
                 <>
-                  <span className="animate-spin inline-block w-3 h-3 border border-threat-400 border-t-transparent rounded-full mr-2" />
-                  Scanning...
+                  <span className="animate-spin inline-block w-2 h-2 border border-threat-400 border-t-transparent rounded-full mr-1" />
+                  ...
                 </>
-              ) : 'Run Scan'}
+              ) : 'Scan'}
             </button>
           </div>
         </div>

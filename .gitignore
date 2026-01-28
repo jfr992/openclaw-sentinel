@@ -13,6 +13,11 @@ node_modules/
 logs/
 *.log
 
+# Runtime state
+detector-state.json
+baseline.json
+baseline.enc
+
 # OS
 .DS_Store
 Thumbs.db

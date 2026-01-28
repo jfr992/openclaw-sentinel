@@ -104,12 +104,23 @@ def get_recent_tool_calls(limit=50):
 
     return sorted(tool_calls, key=lambda x: x.get('timestamp', ''), reverse=True)[:limit]
 
+def find_lsof():
+    """Find lsof binary path."""
+    import shutil
+    for path in ['/usr/sbin/lsof', '/usr/bin/lsof', 'lsof']:
+        if shutil.which(path):
+            return path
+    return None
+
 def get_network_connections():
     """Get current network connections from node/clawdbot processes."""
     connections = []
+    lsof = find_lsof()
+    if not lsof:
+        return connections  # lsof not available (e.g., in Docker)
     try:
         result = subprocess.run(
-            ['/usr/sbin/lsof', '-i', '-n', '-P'],
+            [lsof, '-i', '-n', '-P'],
             capture_output=True, text=True, timeout=5
         )
         for line in result.stdout.split('\n'):
@@ -142,6 +153,11 @@ def get_detailed_network():
         }
     }
 
+    # Check if lsof is available
+    lsof = find_lsof()
+    if not lsof:
+        return result  # lsof not available (e.g., in Docker)
+
     # Known suspicious ports/hosts
     suspicious_ports = {22: 'SSH', 23: 'Telnet', 3389: 'RDP', 4444: 'Metasploit', 5555: 'ADB'}
     suspicious_hosts = ['pastebin.com', 'ngrok.io', 'serveo.net', 'localtunnel.me']
@@ -149,7 +165,7 @@ def get_detailed_network():
     try:
         # Get all connections with lsof
         lsof_result = subprocess.run(
-            ['/usr/sbin/lsof', '-i', '-n', '-P'],
+            [lsof, '-i', '-n', '-P'],
             capture_output=True, text=True, timeout=10
         )
 
@@ -1223,14 +1239,14 @@ if __name__ == '__main__':
             """Handle agent events (tool calls, lifecycle) from gateway."""
             stream = data.get('stream', '')
             event_data = data.get('data', {})
-            
+
             # Tool call events
             if stream == 'tool_call' or 'tool' in event_data:
                 tool_name = event_data.get('tool', event_data.get('name', 'unknown'))
                 print(f"[Gateway] 🔧 Tool call: {tool_name}")
                 socketio.emit('tool_call', data)
                 record_tool_call(tool_name, True)
-                
+
                 # Security analysis on exec
                 if tool_name == 'exec':
                     command = event_data.get('args', {}).get('command', '')
@@ -1252,7 +1268,7 @@ if __name__ == '__main__':
                             }
                             SECURITY_STATE['alerts'].insert(0, alert)
                             socketio.emit('security_alert', alert)
-            
+
             # Lifecycle events
             elif stream in ('start', 'complete', 'error', 'aborted'):
                 socketio.emit('agent_lifecycle', data)
@@ -1260,7 +1276,7 @@ if __name__ == '__main__':
         def on_chat_event(data):
             """Handle chat/message events from gateway."""
             socketio.emit('chat_event', data)
-            
+
             # Record token usage if present
             usage = data.get('usage', {})
             if usage:
@@ -1298,5 +1314,3 @@ if __name__ == '__main__':
     print("=" * 40 + "\n")
 
     socketio.run(app, host=host, port=port, debug=False, allow_unsafe_werkzeug=True)
-
-

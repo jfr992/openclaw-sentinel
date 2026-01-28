@@ -61,7 +61,7 @@ export default function App() {
       />
 
       <main className="ml-16 p-4">
-        <Header />
+        <Header alertCount={alerts.length} />
 
         {/* Metrics - always visible but compact when zoomed */}
         <div className={`transition-all duration-300 ${isZoomed ? 'mb-3' : 'mb-4'}`}>

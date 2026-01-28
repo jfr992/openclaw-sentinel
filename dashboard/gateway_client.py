@@ -48,7 +48,7 @@ class GatewayClient:
         self.pending_requests: Dict[str, Any] = {}
         self.callbacks: Dict[str, List[Callable]] = {
             'chat': [],       # Chat/message events
-            'agent': [],      # Agent tool call events  
+            'agent': [],      # Agent tool call events
             'presence': [],   # Presence updates
             'health': [],     # Health events
             'connect': [],    # Connection state
@@ -60,9 +60,13 @@ class GatewayClient:
 
     def _load_config(self):
         """Load gateway URL and token from clawdbot config."""
-        self.gateway_url = os.environ.get('CLAWDBOT_URL', 'ws://127.0.0.1:18789')
+        # Detect if running in Docker - use host.docker.internal
+        in_docker = os.path.exists('/.dockerenv')
+        default_host = 'host.docker.internal' if in_docker else '127.0.0.1'
+
+        self.gateway_url = os.environ.get('CLAWDBOT_URL', f'ws://{default_host}:18789')
         self.token = os.environ.get('CLAWDBOT_API_TOKEN')
-        
+
         # Auto-load from clawdbot.json if not set
         if CLAWDBOT_CONFIG.exists():
             try:
@@ -72,7 +76,7 @@ class GatewayClient:
                 # Get port if configured
                 port = config.get('gateway', {}).get('port', 18789)
                 if 'CLAWDBOT_URL' not in os.environ:
-                    self.gateway_url = f'ws://127.0.0.1:{port}'
+                    self.gateway_url = f'ws://{default_host}:{port}'
             except Exception as e:
                 print(f"[GatewayClient] Config load warning: {e}")
 
@@ -111,7 +115,7 @@ class GatewayClient:
                     print(f"[GatewayClient] Events available: {self._features.get('events', [])}")
                     self._emit('connect', {'connected': True, 'features': self._features})
                     return
-                
+
                 # Handle other responses
                 req_id = msg.get('id')
                 if req_id in self.pending_requests:
@@ -126,7 +130,7 @@ class GatewayClient:
             if msg_type == 'event':
                 event_name = msg.get('event', '')
                 payload = msg.get('payload', {})
-                
+
                 # Route to appropriate callbacks
                 if event_name == 'chat':
                     self._emit('chat', payload)
@@ -225,7 +229,7 @@ class GatewayClient:
                             )
                         except Exception as e:
                             print(f"[GatewayClient] Run error: {e}")
-                
+
                 if not self._stop:
                     print("[GatewayClient] Reconnecting in 5s...")
                     time.sleep(5)
@@ -287,7 +291,7 @@ class GatewayClient:
             'connected': self.connected,
             'gateway_url': self.gateway_url,
             'has_token': bool(self.token),
-            'token_source': 'env' if os.environ.get('CLAWDBOT_API_TOKEN') else 
+            'token_source': 'env' if os.environ.get('CLAWDBOT_API_TOKEN') else
                            ('config' if self.token else 'none'),
             'features': self._features,
         }

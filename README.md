@@ -89,6 +89,10 @@ cd ~/.moltbot-security && ./setup.sh
 | `MOLTBOT_PORT` | `5050` | Dashboard port |
 | `MOLTBOT_HOST` | `127.0.0.1` | Bind address |
 | `CLAWDBOT_DIR` | `~/.clawdbot` | Agent logs directory |
+| `CLAWDBOT_URL` | `ws://127.0.0.1:18789` | Gateway WebSocket URL (auto-detects Docker) |
+| `CLAWDBOT_API_TOKEN` | *(from config)* | Gateway auth token |
+
+> **Note:** Network monitoring requires `lsof` and is disabled in Docker (container can only see its own traffic). Run natively for full network visibility.
 
 ### Baseline Settings
 
@@ -166,6 +170,10 @@ MoltBot connects to Clawdbot's gateway WebSocket for live monitoring:
 ```
 
 Auto-configures from `~/.clawdbot/clawdbot.json` (reads `gateway.auth.token` and `gateway.port`).
+
+**Docker:** Automatically uses `host.docker.internal` to reach the host gateway.
+
+**Status Indicator:** Header shows **LIVE** (cyan) when connected, **OFFLINE** (gray) when disconnected.
 
 ---
 
