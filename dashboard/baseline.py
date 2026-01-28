@@ -51,8 +51,71 @@ class BehaviorBaseline:
         return {
             'windows': [],  # List of hourly windows
             'learned': False,
-            'min_windows': 24,  # Need 24 hours before baseline is "learned"
+            'min_windows': 24,  # Default: 24 hours before baseline is "learned"
+            'config': {
+                'learning_period': 24,  # Hours: 1, 6, 24, 168 (1 week)
+                'sensitivity': 'medium',  # low, medium, high, paranoid
+                'anomaly_threshold': 3.0,  # Multiplier for "unusual" activity
+                'whitelist_commands': [],  # Commands to ignore
+                'whitelist_paths': [],  # Paths to ignore
+                'whitelist_ips': [],  # IPs to ignore
+            }
         }
+    
+    def update_config(self, config: Dict):
+        """Update baseline configuration."""
+        if 'config' not in self.baseline:
+            self.baseline['config'] = self._default_baseline()['config']
+        
+        for key, value in config.items():
+            if key in self.baseline['config']:
+                self.baseline['config'][key] = value
+        
+        # Update min_windows based on learning_period
+        self.baseline['min_windows'] = self.baseline['config'].get('learning_period', 24)
+        
+        # Adjust anomaly threshold based on sensitivity
+        sensitivity_thresholds = {
+            'low': 5.0,      # Very tolerant
+            'medium': 3.0,   # Default
+            'high': 2.0,     # Sensitive
+            'paranoid': 1.5  # Alert on small deviations
+        }
+        sensitivity = self.baseline['config'].get('sensitivity', 'medium')
+        self.baseline['config']['anomaly_threshold'] = sensitivity_thresholds.get(sensitivity, 3.0)
+        
+        self._save_baseline()
+    
+    def get_config(self) -> Dict:
+        """Get current baseline configuration."""
+        if 'config' not in self.baseline:
+            self.baseline['config'] = self._default_baseline()['config']
+        return self.baseline['config']
+    
+    def mark_as_normal(self, activity_type: str, details: Dict):
+        """Quick-learn: mark an activity as normal (whitelist it)."""
+        if 'config' not in self.baseline:
+            self.baseline['config'] = self._default_baseline()['config']
+        
+        if activity_type == 'EXEC':
+            cmd = details.get('command', '').split()[0] if details.get('command') else None
+            if cmd and cmd not in self.baseline['config']['whitelist_commands']:
+                self.baseline['config']['whitelist_commands'].append(cmd)
+        elif activity_type in ('READ', 'WRITE', 'EDIT'):
+            path = details.get('path', '')
+            if path and path not in self.baseline['config']['whitelist_paths']:
+                self.baseline['config']['whitelist_paths'].append(path)
+        elif activity_type == 'NETWORK':
+            ip = details.get('remote', '').split(':')[0] if details.get('remote') else None
+            if ip and ip not in self.baseline['config']['whitelist_ips']:
+                self.baseline['config']['whitelist_ips'].append(ip)
+        
+        self._save_baseline()
+    
+    def reset_baseline(self):
+        """Reset baseline to start fresh."""
+        self.baseline = self._default_baseline()
+        self._save_baseline()
     
     def _save_baseline(self):
         """Save baseline to disk (encrypted if enabled)."""
@@ -173,6 +236,10 @@ class BehaviorBaseline:
     
     def _check_rate_anomaly(self, activity_type: str, windows: List[Dict]) -> Optional[str]:
         """Check if activity rate is anomalous."""
+        # Get configured threshold
+        config = self.baseline.get('config', {})
+        threshold = config.get('anomaly_threshold', 3.0)
+        
         # Get historical counts for this activity type
         historical = [w['counts'].get(activity_type, 0) for w in windows]
         if not historical or all(h == 0 for h in historical):
@@ -186,8 +253,8 @@ class BehaviorBaseline:
                 return f"Unusual {activity_type} activity: {current_count} ops (normally none)"
             return None
         
-        # Flag if more than 3x normal
-        if current_count > mean * 3 and current_count > 5:
+        # Flag if exceeds threshold
+        if current_count > mean * threshold and current_count > 5:
             return f"High {activity_type} rate: {current_count} ops (normal: ~{mean:.0f})"
         
         return None
@@ -196,6 +263,12 @@ class BehaviorBaseline:
         """Check if command is unusual."""
         cmd = details.get('command', '').split()[0] if details.get('command') else None
         if not cmd:
+            return None
+        
+        # Check whitelist
+        config = self.baseline.get('config', {})
+        whitelist = config.get('whitelist_commands', [])
+        if cmd in whitelist:
             return None
         
         # Build set of known commands

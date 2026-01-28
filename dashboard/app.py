@@ -847,13 +847,32 @@ def api_smart_filter_learn():
 def api_baseline_reset():
     """Reset the behavioral baseline."""
     baseline = get_baseline()
-    baseline.baseline = {
-        'windows': [],
-        'learned': False,
-        'min_windows': 24,
-    }
-    baseline._save_baseline()
+    baseline.reset_baseline()
     return jsonify({'success': True, 'message': 'Baseline reset'})
+
+@app.route('/api/baseline/config', methods=['GET', 'POST'])
+def api_baseline_config():
+    """Get or update baseline configuration."""
+    baseline = get_baseline()
+    
+    if request.method == 'POST':
+        config = request.get_json() or {}
+        baseline.update_config(config)
+        return jsonify({'success': True, 'config': baseline.get_config()})
+    
+    return jsonify(baseline.get_config())
+
+@app.route('/api/baseline/whitelist', methods=['POST'])
+def api_baseline_whitelist():
+    """Add item to whitelist (mark as normal)."""
+    data = request.get_json() or {}
+    activity_type = data.get('type', 'EXEC')
+    details = data.get('details', {})
+    
+    baseline = get_baseline()
+    baseline.mark_as_normal(activity_type, details)
+    
+    return jsonify({'success': True, 'message': 'Added to whitelist'})
 
 
 def background_monitor():

@@ -40,17 +40,32 @@ Reads from `~/.clawdbot` (where molt.bot stores session logs).
 
 ## Installation
 
+### Docker (Recommended)
+
+```bash
+docker run -d \
+  --name moltbot-security \
+  -p 5050:5050 \
+  -v ~/.clawdbot:/data:ro \
+  ghcr.io/jfr992/moltbot-security-dashboard:latest
+```
+
+Or with docker-compose:
+
+```bash
+curl -O https://raw.githubusercontent.com/jfr992/moltbot-security-dashboard/main/docker-compose.yml
+docker-compose up -d
+```
+
+### From Source
+
 ```bash
 git clone https://github.com/jfr992/moltbot-security-dashboard.git ~/.moltbot-security
 cd ~/.moltbot-security && ./setup.sh
+./start.sh
 ```
 
-### Start
-
-```bash
-~/.moltbot-security/start
-# → http://localhost:5050
-```
+**Dashboard:** http://localhost:5050
 
 ---
 
@@ -80,11 +95,30 @@ cd ~/.moltbot-security && ./setup.sh
 
 ## Configuration
 
+### Environment Variables
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MOLTBOT_PORT` | `5050` | Dashboard port |
 | `MOLTBOT_HOST` | `127.0.0.1` | Bind address |
 | `CLAWDBOT_DIR` | `~/.clawdbot` | Agent logs directory |
+
+### Baseline Settings
+
+Configure via Settings → Baseline, or API:
+
+| Setting | Options | Description |
+|---------|---------|-------------|
+| **Learning Period** | 1h, 6h, 24h, 7d | Time to learn "normal" patterns |
+| **Sensitivity** | low, medium, high, paranoid | Alert threshold |
+| **Whitelist** | commands, paths, IPs | Ignore specific items |
+
+```bash
+# API example: set to paranoid mode with 6h learning
+curl -X POST http://localhost:5050/api/baseline/config \
+  -H "Content-Type: application/json" \
+  -d '{"sensitivity": "paranoid", "learning_period": 6}'
+```
 
 ---
 
