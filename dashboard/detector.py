@@ -14,6 +14,9 @@ from dataclasses import dataclass, asdict
 from typing import List, Optional
 import re
 
+from baseline import get_baseline
+from smart_alerts import get_smart_filter
+
 # Alert severity levels
 CRITICAL = "critical"
 HIGH = "high"
@@ -581,6 +584,59 @@ class SecurityDetector:
         
         return alerts
 
+    def check_behavioral_anomalies(self) -> List[Alert]:
+        """Check for behavioral anomalies based on learned baseline."""
+        alerts = []
+        baseline = get_baseline()
+        stats = baseline.get_stats()
+        
+        if not stats.get('learned'):
+            # Not enough data yet - no alerts
+            return alerts
+        
+        # Check current window activity against baseline
+        for activity_type, count in baseline.current_window.get('counts', {}).items():
+            anomaly = baseline.check_anomaly(activity_type, {})
+            if anomaly:
+                alerts.append(Alert(
+                    severity=anomaly.get('severity', MEDIUM),
+                    category="behavioral_anomaly",
+                    title=f"Unusual {activity_type} Activity Pattern",
+                    description="; ".join(anomaly.get('reasons', [])),
+                    timestamp=datetime.now().isoformat(),
+                    details={
+                        "activity_type": activity_type,
+                        "current_count": count,
+                        "anomaly_reasons": anomaly.get('reasons', []),
+                        "recommendation": "Review recent activity for this operation type"
+                    }
+                ))
+        
+        return alerts
+    
+    def record_activity(self, activity_type: str, details: dict) -> Optional[Alert]:
+        """Record activity for baseline learning and check for anomalies."""
+        baseline = get_baseline()
+        baseline.record_activity(activity_type, details)
+        
+        # Check if this specific activity is anomalous
+        anomaly = baseline.check_anomaly(activity_type, details)
+        if anomaly:
+            return Alert(
+                severity=anomaly.get('severity', MEDIUM),
+                category="behavioral_anomaly",
+                title=f"Anomalous {activity_type} Detected",
+                description="; ".join(anomaly.get('reasons', [])),
+                timestamp=datetime.now().isoformat(),
+                details={
+                    "activity_type": activity_type,
+                    "activity_details": details,
+                    "anomaly_reasons": anomaly.get('reasons', []),
+                    "recommendation": "Investigate this activity"
+                }
+            )
+        return None
+
     def run_all_checks(self) -> List[Alert]:
         """Run all security checks and return alerts."""
         all_alerts = []
@@ -593,8 +649,9 @@ class SecurityDetector:
             self.check_suspicious_processes,
             self.check_failed_logins,
             self.check_new_users,
-            self.check_lockfile_modifications,
+            # self.check_lockfile_modifications,  # Too noisy for dev
             self.check_clawdbot_tool_abuse,
+            # self.check_behavioral_anomalies,  # Too noisy - rate-based alerts not useful
         ]
         
         for check in checks:
@@ -603,6 +660,16 @@ class SecurityDetector:
                 all_alerts.extend(alerts)
             except Exception as e:
                 print(f"Error in {check.__name__}: {e}")
+        
+        # Filter through smart alert system
+        smart_filter = get_smart_filter()
+        filtered_alerts = []
+        for alert in all_alerts:
+            should_suppress, reason = smart_filter.should_suppress(alert.to_dict())
+            if not should_suppress:
+                filtered_alerts.append(alert)
+        
+        all_alerts = filtered_alerts
         
         # Save state
         self.state['last_check'] = datetime.now().isoformat()

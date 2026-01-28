@@ -217,6 +217,10 @@ class TrustEngine:
         if session_id:
             result['is_trusted_session'] = self.is_trusted_session(session_id)
         
+        # Analyze the command itself for risk indicators
+        risk_analysis = self.analyze_command_risk(command)
+        result['risk_analysis'] = risk_analysis
+        
         # Check threat intel
         threat_match = self.check_threat_intel(command)
         if threat_match:
@@ -243,9 +247,212 @@ class TrustEngine:
                 result['trust_level'] = self.SUSPICIOUS
                 result['recommendation'] = "REVIEW: No trusted session or user request"
         else:
-            result['recommendation'] = "Unable to verify - no session context"
+            # No session context - use risk analysis to provide recommendation
+            if risk_analysis['risk_level'] == 'high':
+                result['trust_level'] = self.SUSPICIOUS
+                result['recommendation'] = f"REVIEW: {risk_analysis['summary']}"
+            elif risk_analysis['risk_level'] == 'medium':
+                result['trust_level'] = self.UNVERIFIED
+                result['recommendation'] = f"CAUTION: {risk_analysis['summary']}"
+            elif risk_analysis['risk_level'] == 'low':
+                result['trust_level'] = self.VERIFIED
+                result['recommendation'] = f"LIKELY SAFE: {risk_analysis['summary']}"
+            elif risk_analysis['risk_level'] == 'minimal':
+                result['trust_level'] = self.TRUSTED
+                result['recommendation'] = f"SAFE: {risk_analysis['summary']}"
+            else:
+                result['trust_level'] = self.UNVERIFIED
+                result['recommendation'] = f"UNKNOWN: {risk_analysis['summary']}"
         
         return result
+    
+    def analyze_command_risk(self, command: str) -> Dict:
+        """Analyze a command for risk indicators without session context."""
+        command_lower = command.lower().strip()
+        risk_factors = []
+        capabilities = []
+        
+        # Network-capable commands
+        network_commands = {
+            'telnet': ('Network connection tool', 'Can connect to remote hosts, unencrypted'),
+            'nc': ('Netcat', 'Powerful network tool, can create reverse shells'),
+            'ncat': ('Ncat', 'Enhanced netcat, can create reverse shells'),
+            'netcat': ('Netcat', 'Powerful network tool, can create reverse shells'),
+            'curl': ('HTTP client', 'Downloads content from URLs'),
+            'wget': ('HTTP client', 'Downloads files from URLs'),
+            'ssh': ('Secure shell', 'Remote access to systems'),
+            'scp': ('Secure copy', 'Transfers files over SSH'),
+            'rsync': ('Remote sync', 'Syncs files, can be remote'),
+            'ftp': ('FTP client', 'Unencrypted file transfer'),
+            'sftp': ('SFTP client', 'Encrypted file transfer'),
+            'nmap': ('Network scanner', 'Scans networks and ports'),
+            'ping': ('Network ping', 'Tests network connectivity'),
+            'traceroute': ('Network trace', 'Shows network path'),
+            'dig': ('DNS lookup', 'Queries DNS records'),
+            'nslookup': ('DNS lookup', 'Queries DNS records'),
+            'host': ('DNS lookup', 'Queries DNS records'),
+        }
+        
+        # System modification commands
+        system_commands = {
+            'rm': ('Remove files', 'Deletes files/directories'),
+            'dd': ('Disk dump', 'Low-level disk operations'),
+            'mkfs': ('Make filesystem', 'Formats disks'),
+            'fdisk': ('Disk partition', 'Modifies partitions'),
+            'chmod': ('Change permissions', 'Modifies file permissions'),
+            'chown': ('Change owner', 'Modifies file ownership'),
+            'sudo': ('Superuser do', 'Runs with elevated privileges'),
+            'su': ('Switch user', 'Changes user context'),
+            'passwd': ('Change password', 'Modifies user passwords'),
+            'useradd': ('Add user', 'Creates new users'),
+            'userdel': ('Delete user', 'Removes users'),
+            'crontab': ('Cron table', 'Schedules recurring tasks'),
+            'systemctl': ('System control', 'Manages system services'),
+            'service': ('Service manager', 'Controls services'),
+            'kill': ('Kill process', 'Terminates processes'),
+            'pkill': ('Kill by name', 'Terminates processes by name'),
+        }
+        
+        # Shell/execution commands  
+        exec_commands = {
+            'bash': ('Bash shell', 'Command interpreter'),
+            'sh': ('Shell', 'Command interpreter'),
+            'zsh': ('Zsh shell', 'Command interpreter'),
+            'python': ('Python', 'Script interpreter'),
+            'python3': ('Python 3', 'Script interpreter'),
+            'perl': ('Perl', 'Script interpreter'),
+            'ruby': ('Ruby', 'Script interpreter'),
+            'node': ('Node.js', 'JavaScript runtime'),
+            'eval': ('Eval', 'Evaluates code'),
+            'exec': ('Exec', 'Executes commands'),
+            'source': ('Source', 'Executes script in current shell'),
+        }
+        
+        # Safe/benign commands (read-only, informational)
+        safe_commands = {
+            'whoami': 'Shows current username',
+            'id': 'Shows user/group IDs',
+            'pwd': 'Shows current directory',
+            'ls': 'Lists directory contents',
+            'cat': 'Displays file contents',
+            'head': 'Shows first lines of file',
+            'tail': 'Shows last lines of file',
+            'less': 'File pager',
+            'more': 'File pager',
+            'echo': 'Prints text',
+            'date': 'Shows date/time',
+            'cal': 'Shows calendar',
+            'uptime': 'Shows system uptime',
+            'uname': 'Shows system info',
+            'hostname': 'Shows hostname',
+            'env': 'Shows environment variables',
+            'printenv': 'Shows environment variables',
+            'which': 'Shows command path',
+            'whereis': 'Locates command',
+            'type': 'Shows command type',
+            'file': 'Shows file type',
+            'wc': 'Word/line count',
+            'sort': 'Sorts text',
+            'uniq': 'Filters duplicates',
+            'grep': 'Searches text patterns',
+            'find': 'Finds files',
+            'locate': 'Locates files',
+            'df': 'Shows disk usage',
+            'du': 'Shows directory size',
+            'free': 'Shows memory usage',
+            'top': 'Shows processes',
+            'htop': 'Shows processes (interactive)',
+            'ps': 'Lists processes',
+            'man': 'Shows manual pages',
+            'help': 'Shows help',
+            'history': 'Shows command history',
+            'clear': 'Clears terminal',
+            'true': 'Returns success',
+            'false': 'Returns failure',
+            'test': 'Evaluates conditions',
+            'cd': 'Changes directory',
+            'mkdir': 'Creates directory',
+            'touch': 'Creates empty file',
+            'cp': 'Copies files',
+            'mv': 'Moves files',
+        }
+        
+        # Extract base command
+        parts = command_lower.split()
+        base_cmd = parts[0] if parts else ''
+        
+        # Check safe commands first
+        if base_cmd in safe_commands:
+            return {
+                'risk_level': 'minimal',
+                'risk_factors': [],
+                'capabilities': [f"Safe: {safe_commands[base_cmd]}"],
+                'summary': safe_commands[base_cmd],
+                'base_command': base_cmd
+            }
+        
+        # Check against known commands
+        if base_cmd in network_commands:
+            name, desc = network_commands[base_cmd]
+            capabilities.append(f"Network: {name} - {desc}")
+            risk_factors.append('Network capability')
+            
+        if base_cmd in system_commands:
+            name, desc = system_commands[base_cmd]
+            capabilities.append(f"System: {name} - {desc}")
+            risk_factors.append('System modification capability')
+            
+        if base_cmd in exec_commands:
+            name, desc = exec_commands[base_cmd]
+            capabilities.append(f"Execution: {name} - {desc}")
+            
+        # Check for dangerous patterns
+        dangerous_patterns = [
+            (r'\|.*sh\b', 'Pipe to shell - potential code execution'),
+            (r'>\s*/dev/', 'Write to device - potential system damage'),
+            (r'>\s*/etc/', 'Write to /etc - system config modification'),
+            (r'rm\s+-rf\s+/', 'Recursive force delete from root'),
+            (r':\(\)\{.*\}', 'Fork bomb pattern'),
+            (r'base64\s+-d', 'Base64 decode - potential obfuscation'),
+            (r'eval\s*\(', 'Eval with expression - code execution'),
+            (r'/dev/tcp/', 'Bash TCP redirection'),
+            (r'/dev/udp/', 'Bash UDP redirection'),
+        ]
+        
+        import re
+        for pattern, reason in dangerous_patterns:
+            if re.search(pattern, command_lower):
+                risk_factors.append(reason)
+        
+        # Determine risk level
+        if any('shell' in f.lower() or 'fork bomb' in f.lower() or 'root' in f.lower() for f in risk_factors):
+            risk_level = 'high'
+        elif len(risk_factors) >= 2 or 'System modification' in str(risk_factors):
+            risk_level = 'medium'
+        elif risk_factors:
+            risk_level = 'low'
+        elif capabilities:
+            risk_level = 'low'
+        else:
+            risk_level = 'minimal'
+            
+        # Generate summary
+        if not capabilities and not risk_factors:
+            summary = f"Command '{base_cmd}' - no specific risk indicators found"
+        elif capabilities and not risk_factors:
+            summary = f"{capabilities[0]}"
+        elif risk_factors:
+            summary = f"Risk factors: {', '.join(risk_factors[:3])}"
+        else:
+            summary = "Unable to determine risk profile"
+            
+        return {
+            'risk_level': risk_level,
+            'risk_factors': risk_factors,
+            'capabilities': capabilities,
+            'summary': summary,
+            'base_command': base_cmd
+        }
     
     def check_threat_intel(self, text: str) -> Optional[Dict]:
         """Check if text matches known threats."""

@@ -12,14 +12,19 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from flask import Flask, jsonify, send_from_directory
 from flask_socketio import SocketIO
+from flask_cors import CORS
 import threading
 import time
 
-# Import security detector and trust engine
+# Import security detector, trust engine, baseline, smart filtering, and crypto
 from detector import SecurityDetector
 from trust import get_trust_engine, TrustEngine
+from baseline import get_baseline
+from smart_alerts import get_smart_filter
+from crypto import get_encryption
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 security_detector = SecurityDetector()
 trust_engine = get_trust_engine()
 app.config['SECRET_KEY'] = 'clawdbot-security-dashboard'
@@ -409,7 +414,18 @@ def api_network_detailed():
 
 @app.route('/api/alerts')
 def api_alerts():
-    return jsonify(security_detector.get_recent_alerts(50))
+    alerts = security_detector.get_recent_alerts(50)
+    
+    # Filter by threshold from settings
+    settings = get_settings()
+    threshold = settings.get('alertThreshold', 'all')
+    
+    if threshold != 'all':
+        severity_levels = {'low': 1, 'medium': 2, 'high': 3, 'critical': 4}
+        min_level = severity_levels.get(threshold, 1)
+        alerts = [a for a in alerts if severity_levels.get(a.get('severity', 'medium'), 2) >= min_level]
+    
+    return jsonify(alerts)
 
 @app.route('/api/security-check')
 def api_security_check():
@@ -450,6 +466,74 @@ def api_settings():
         save_settings(settings)
         return jsonify({'success': True})
     return jsonify(get_settings())
+
+
+# --- Encryption API ---
+
+@app.route('/api/encryption/status')
+def api_encryption_status():
+    """Get encryption status."""
+    return jsonify(get_encryption().get_status())
+
+@app.route('/api/encryption/setup', methods=['POST'])
+def api_encryption_setup():
+    """Set up encryption with a passphrase."""
+    from flask import request
+    data = request.get_json() or {}
+    passphrase = data.get('passphrase', '')
+    
+    if len(passphrase) < 8:
+        return jsonify({'success': False, 'error': 'Passphrase must be at least 8 characters'}), 400
+    
+    encryption = get_encryption()
+    if encryption.setup(passphrase):
+        # Re-save baseline as encrypted
+        baseline = get_baseline()
+        baseline._save_baseline()
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'error': 'Setup failed'}), 500
+
+@app.route('/api/encryption/unlock', methods=['POST'])
+def api_encryption_unlock():
+    """Unlock encryption with passphrase."""
+    from flask import request
+    data = request.get_json() or {}
+    passphrase = data.get('passphrase', '')
+    
+    encryption = get_encryption()
+    if encryption.unlock(passphrase):
+        # Reload baseline with unlocked encryption
+        baseline = get_baseline()
+        baseline.baseline = baseline._load_baseline()
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'error': 'Invalid passphrase'}), 401
+
+@app.route('/api/encryption/lock', methods=['POST'])
+def api_encryption_lock():
+    """Lock encryption (clear key from memory)."""
+    get_encryption().lock()
+    return jsonify({'success': True})
+
+@app.route('/api/encryption/disable', methods=['POST'])
+def api_encryption_disable():
+    """Disable encryption entirely."""
+    from flask import request
+    data = request.get_json() or {}
+    passphrase = data.get('passphrase', '')
+    
+    encryption = get_encryption()
+    
+    # Require unlock first to disable
+    if encryption.is_enabled() and not encryption.is_unlocked():
+        if not encryption.unlock(passphrase):
+            return jsonify({'success': False, 'error': 'Invalid passphrase'}), 401
+    
+    # Re-save baseline as plain before disabling
+    baseline = get_baseline()
+    encryption.disable()
+    baseline._save_baseline()
+    
+    return jsonify({'success': True})
 
 @app.route('/api/storage-stats')
 def api_storage_stats():
@@ -541,17 +625,20 @@ def api_trust_session():
 def api_trust_evaluate():
     """Evaluate trust level of a command."""
     from flask import request
-    data = request.get_json()
-    command = data.get('command', '')
-    session_id = data.get('sessionId', '')
-    session_file = data.get('sessionFile', '')
-    
-    if not command:
-        return jsonify({'error': 'No command provided'})
-    
-    session_path = Path(session_file) if session_file else None
-    result = trust_engine.evaluate_command(command, session_id, session_path)
-    return jsonify(result)
+    try:
+        data = request.get_json() or {}
+        command = data.get('command', '')
+        session_id = data.get('sessionId', '')
+        session_file = data.get('sessionFile', '')
+        
+        if not command:
+            return jsonify({'error': 'No command provided'}), 400
+        
+        session_path = Path(session_file) if session_file else None
+        result = trust_engine.evaluate_command(command, session_id, session_path)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e), 'trust_level': 'unknown'}), 500
 
 @app.route('/api/trust/threat-intel')
 def api_threat_intel():
@@ -725,14 +812,85 @@ def api_alert_action():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/baseline')
+def api_baseline():
+    """Get behavioral baseline statistics."""
+    baseline = get_baseline()
+    return jsonify(baseline.get_stats())
+
+@app.route('/api/alerts/clear', methods=['POST'])
+def api_alerts_clear():
+    """Clear all alerts."""
+    if security_detector.alerts_file.exists():
+        security_detector.alerts_file.write_text('[]')
+    return jsonify({'success': True, 'message': 'All alerts cleared'})
+
+@app.route('/api/smart-filter')
+def api_smart_filter():
+    """Get smart filter statistics."""
+    smart_filter = get_smart_filter()
+    return jsonify(smart_filter.get_stats())
+
+@app.route('/api/smart-filter/learn', methods=['POST'])
+def api_smart_filter_learn():
+    """Learn from a dismissed alert."""
+    data = request.get_json() or {}
+    alert = data.get('alert', {})
+    smart_filter = get_smart_filter()
+    smart_filter.learn_from_dismissal(alert)
+    return jsonify({'success': True, 'message': 'Learned from dismissal'})
+
+@app.route('/api/baseline/reset', methods=['POST'])
+def api_baseline_reset():
+    """Reset the behavioral baseline."""
+    baseline = get_baseline()
+    baseline.baseline = {
+        'windows': [],
+        'learned': False,
+        'min_windows': 24,
+    }
+    baseline._save_baseline()
+    return jsonify({'success': True, 'message': 'Baseline reset'})
+
+
 def background_monitor():
     """Background thread to push updates via WebSocket."""
     last_data = None
+    last_tool_ids = set()
+    baseline = get_baseline()
+    
     while True:
         try:
+            tool_calls = get_recent_tool_calls(10)
+            connections = get_network_connections()
+            
+            # Record new tool calls to baseline
+            for tc in tool_calls:
+                tc_id = f"{tc.get('timestamp')}_{tc.get('tool')}"
+                if tc_id not in last_tool_ids:
+                    last_tool_ids.add(tc_id)
+                    # Keep set bounded
+                    if len(last_tool_ids) > 1000:
+                        last_tool_ids = set(list(last_tool_ids)[-500:])
+                    
+                    # Record to baseline
+                    tool_name = tc.get('tool', '').upper()
+                    if tool_name in ('READ', 'WRITE', 'EDIT'):
+                        baseline.record_activity(tool_name, {
+                            'path': tc.get('input', {}).get('path', '')
+                        })
+                    elif tool_name == 'EXEC':
+                        baseline.record_activity('EXEC', {
+                            'command': tc.get('input', {}).get('command', '')
+                        })
+                    elif tool_name in ('WEB_FETCH', 'WEB_SEARCH', 'BROWSER'):
+                        baseline.record_activity('NETWORK', {
+                            'remote': tc.get('input', {}).get('url', '')
+                        })
+            
             data = {
-                'tool_calls': get_recent_tool_calls(10),
-                'connections': get_network_connections(),
+                'tool_calls': tool_calls,
+                'connections': connections,
                 'updated': datetime.now().isoformat()
             }
             if str(data) != str(last_data):
@@ -742,10 +900,48 @@ def background_monitor():
             pass
         time.sleep(3)
 
+def background_security():
+    """Background thread to run security checks."""
+    last_alert_count = 0
+    
+    while True:
+        try:
+            # Run all security checks
+            new_alerts = security_detector.run_all_checks()
+            current_alerts = security_detector.get_recent_alerts(50)
+            alert_count = len(current_alerts)
+            
+            # Emit status update
+            has_alerts = alert_count > 0
+            critical_count = sum(1 for a in current_alerts if a.get('severity') == 'critical')
+            high_count = sum(1 for a in current_alerts if a.get('severity') == 'high')
+            
+            socketio.emit('security_status', {
+                'status': 'alert' if has_alerts else 'ok',
+                'alert_count': alert_count,
+                'critical': critical_count,
+                'high': high_count,
+                'new_alerts': len(new_alerts),
+                'timestamp': datetime.now().isoformat()
+            })
+            
+            # If new alerts found, emit them
+            if new_alerts:
+                socketio.emit('new_alerts', [a.to_dict() for a in new_alerts])
+            
+            last_alert_count = alert_count
+        except Exception as e:
+            print(f"Security check error: {e}")
+        
+        time.sleep(30)  # Run every 30 seconds
+
 if __name__ == '__main__':
-    # Start background monitor
+    # Start background threads
     monitor_thread = threading.Thread(target=background_monitor, daemon=True)
     monitor_thread.start()
+    
+    security_thread = threading.Thread(target=background_security, daemon=True)
+    security_thread.start()
     
     print("\n🦀 MoltBot Security Dashboard")
     print("=" * 40)

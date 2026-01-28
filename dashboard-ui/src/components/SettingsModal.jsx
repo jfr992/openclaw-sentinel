@@ -1,21 +1,29 @@
 import { useState, useEffect } from 'react'
-import { X, Trash2, Shield, Database, Clock } from 'lucide-react'
+import { X, Trash2, Shield, Database, Clock, Lock, Unlock, Key } from 'lucide-react'
 
 export default function SettingsModal({ isOpen, onClose }) {
   const [settings, setSettings] = useState({
     retentionDays: 30,
     autoPurge: false,
-    alertThreshold: 'all', // all, high, critical
+    alertThreshold: 'all', // all, medium, high, critical
   })
   const [stats, setStats] = useState(null)
   const [purging, setPurging] = useState(false)
   const [saved, setSaved] = useState(false)
+  
+  // Encryption state
+  const [encryption, setEncryption] = useState({ enabled: false, unlocked: false, available: true })
+  const [passphrase, setPassphrase] = useState('')
+  const [confirmPassphrase, setConfirmPassphrase] = useState('')
+  const [encryptionError, setEncryptionError] = useState('')
+  const [encryptionLoading, setEncryptionLoading] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
       // Load current settings and stats
       loadSettings()
       loadStats()
+      loadEncryptionStatus()
     }
   }, [isOpen])
 
@@ -67,6 +75,101 @@ export default function SettingsModal({ isOpen, onClose }) {
       console.error('Purge failed:', e)
     }
     setPurging(false)
+  }
+
+  async function loadEncryptionStatus() {
+    try {
+      const res = await fetch('/api/encryption/status')
+      if (res.ok) {
+        setEncryption(await res.json())
+      }
+    } catch (e) {
+      console.error('Failed to load encryption status:', e)
+    }
+  }
+
+  async function setupEncryption() {
+    if (passphrase.length < 8) {
+      setEncryptionError('Passphrase must be at least 8 characters')
+      return
+    }
+    if (passphrase !== confirmPassphrase) {
+      setEncryptionError('Passphrases do not match')
+      return
+    }
+    
+    setEncryptionLoading(true)
+    setEncryptionError('')
+    try {
+      const res = await fetch('/api/encryption/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passphrase }),
+      })
+      if (res.ok) {
+        setPassphrase('')
+        setConfirmPassphrase('')
+        await loadEncryptionStatus()
+      } else {
+        const data = await res.json()
+        setEncryptionError(data.error || 'Setup failed')
+      }
+    } catch (e) {
+      setEncryptionError('Setup failed')
+    }
+    setEncryptionLoading(false)
+  }
+
+  async function unlockEncryption() {
+    setEncryptionLoading(true)
+    setEncryptionError('')
+    try {
+      const res = await fetch('/api/encryption/unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passphrase }),
+      })
+      if (res.ok) {
+        setPassphrase('')
+        await loadEncryptionStatus()
+      } else {
+        setEncryptionError('Invalid passphrase')
+      }
+    } catch (e) {
+      setEncryptionError('Unlock failed')
+    }
+    setEncryptionLoading(false)
+  }
+
+  async function lockEncryption() {
+    try {
+      await fetch('/api/encryption/lock', { method: 'POST' })
+      await loadEncryptionStatus()
+    } catch (e) {
+      console.error('Lock failed:', e)
+    }
+  }
+
+  async function disableEncryption() {
+    if (!confirm('This will disable encryption and store baseline in plain text. Continue?')) return
+    
+    setEncryptionLoading(true)
+    try {
+      const res = await fetch('/api/encryption/disable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passphrase }),
+      })
+      if (res.ok) {
+        setPassphrase('')
+        await loadEncryptionStatus()
+      } else {
+        setEncryptionError('Must unlock first to disable')
+      }
+    } catch (e) {
+      console.error('Disable failed:', e)
+    }
+    setEncryptionLoading(false)
   }
 
   if (!isOpen) return null
@@ -152,7 +255,7 @@ export default function SettingsModal({ isOpen, onClose }) {
           {/* Alert Threshold */}
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <Shield className="w-4 h-4 text-yellow-400" />
+              <Shield className="w-4 h-4 text-violet-400" />
               <h4 className="text-sm font-medium text-white">Alert Threshold</h4>
             </div>
             
@@ -166,6 +269,107 @@ export default function SettingsModal({ isOpen, onClose }) {
               <option value="high">High and critical only</option>
               <option value="critical">Critical only</option>
             </select>
+          </div>
+
+          {/* Baseline Encryption */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Key className="w-4 h-4 text-cyan-400" />
+              <h4 className="text-sm font-medium text-white">Baseline Encryption</h4>
+              {encryption.enabled && (
+                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  encryption.unlocked 
+                    ? 'bg-green-500/20 text-green-400' 
+                    : 'bg-yellow-500/20 text-yellow-400'
+                }`}>
+                  {encryption.unlocked ? 'Unlocked' : 'Locked'}
+                </span>
+              )}
+            </div>
+            
+            {!encryption.available && (
+              <p className="text-xs text-yellow-400 mb-2">
+                ⚠️ cryptography package not installed. Using fallback HMAC mode (integrity only).
+              </p>
+            )}
+            
+            {!encryption.enabled ? (
+              <div className="space-y-3">
+                <p className="text-xs text-gray-400">
+                  Encrypt baseline data to prevent tampering. You'll need to enter this passphrase after restart.
+                </p>
+                <input
+                  type="password"
+                  placeholder="Passphrase (min 8 chars)"
+                  value={passphrase}
+                  onChange={(e) => setPassphrase(e.target.value)}
+                  className="w-full bg-[var(--dark-900)] border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                />
+                <input
+                  type="password"
+                  placeholder="Confirm passphrase"
+                  value={confirmPassphrase}
+                  onChange={(e) => setConfirmPassphrase(e.target.value)}
+                  className="w-full bg-[var(--dark-900)] border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                />
+                {encryptionError && (
+                  <p className="text-xs text-red-400">{encryptionError}</p>
+                )}
+                <button
+                  onClick={setupEncryption}
+                  disabled={encryptionLoading || passphrase.length < 8}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 transition-colors text-sm disabled:opacity-50"
+                >
+                  <Lock className="w-4 h-4" />
+                  {encryptionLoading ? 'Setting up...' : 'Enable Encryption'}
+                </button>
+              </div>
+            ) : encryption.unlocked ? (
+              <div className="space-y-3">
+                <p className="text-xs text-gray-400">
+                  Baseline is encrypted and unlocked. Lock to clear key from memory.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={lockEncryption}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 transition-colors text-sm"
+                  >
+                    <Lock className="w-4 h-4" />
+                    Lock
+                  </button>
+                  <button
+                    onClick={disableEncryption}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm"
+                  >
+                    Disable
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-gray-400">
+                  Baseline is encrypted. Enter passphrase to unlock.
+                </p>
+                <input
+                  type="password"
+                  placeholder="Passphrase"
+                  value={passphrase}
+                  onChange={(e) => setPassphrase(e.target.value)}
+                  className="w-full bg-[var(--dark-900)] border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                />
+                {encryptionError && (
+                  <p className="text-xs text-red-400">{encryptionError}</p>
+                )}
+                <button
+                  onClick={unlockEncryption}
+                  disabled={encryptionLoading || !passphrase}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors text-sm disabled:opacity-50"
+                >
+                  <Unlock className="w-4 h-4" />
+                  {encryptionLoading ? 'Unlocking...' : 'Unlock'}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Actions */}

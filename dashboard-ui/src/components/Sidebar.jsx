@@ -1,11 +1,10 @@
-import { LayoutDashboard, Bell, Globe, Folder, Shield, Settings } from 'lucide-react'
+import { LayoutDashboard, Bell, Globe, Folder, Settings } from 'lucide-react'
 
 const navItems = [
   { id: 'all', icon: LayoutDashboard, label: 'Dashboard' },
   { id: 'alerts', icon: Bell, label: 'Alerts' },
   { id: 'network', icon: Globe, label: 'Network' },
   { id: 'files', icon: Folder, label: 'Files' },
-  { id: 'trust', icon: Shield, label: 'Trust & Filter' },
 ]
 
 // Minecraft-style crab shield logo

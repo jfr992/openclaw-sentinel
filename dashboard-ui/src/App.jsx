@@ -1,17 +1,42 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import MetricCards from './components/MetricCards'
 import ActivityLog from './components/ActivityLog'
 import AlertsPanel from './components/AlertsPanel'
 import NetworkPanel from './components/NetworkPanel'
-import TrustPanel from './components/TrustPanel'
 import SettingsModal from './components/SettingsModal'
 import PrivacyModal from './components/PrivacyModal'
 import { useActivity, useAlerts } from './hooks/useApi'
 
+// Valid view names for hash routing
+const VALID_VIEWS = ['all', 'alerts', 'network', 'files']
+
+// Get initial view from URL hash
+function getViewFromHash() {
+  const hash = window.location.hash.slice(1) // remove #
+  return VALID_VIEWS.includes(hash) ? hash : 'all'
+}
+
 export default function App() {
-  const [activeView, setActiveView] = useState('all')
+  const [activeView, setActiveView] = useState(getViewFromHash)
+  
+  // Sync hash with view state
+  useEffect(() => {
+    // Update hash when view changes
+    const newHash = activeView === 'all' ? '' : activeView
+    const currentHash = window.location.hash.slice(1)
+    if (currentHash !== newHash) {
+      window.location.hash = newHash
+    }
+  }, [activeView])
+  
+  // Listen for browser back/forward
+  useEffect(() => {
+    const handleHashChange = () => setActiveView(getViewFromHash())
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
   const { data, loading, error } = useActivity(5000)
@@ -61,12 +86,6 @@ export default function App() {
             {activeView === 'files' && (
               <div className="bg-[var(--dark-800)] rounded-xl border border-blue-500/30 overflow-hidden shadow-lg shadow-blue-500/10">
                 <ExpandedFileOps operations={data?.file_ops} />
-              </div>
-            )}
-
-            {activeView === 'trust' && (
-              <div className="bg-[var(--dark-800)] rounded-xl border border-purple-500/30 overflow-hidden shadow-lg shadow-purple-500/10">
-                <TrustPanel expanded={true} />
               </div>
             )}
           </div>
@@ -144,7 +163,7 @@ function FileOpsPanel({ operations }) {
             <div key={i} className="py-1.5 border-b border-white/5 last:border-0">
               <div className="flex items-center gap-2 text-xs">
                 <span className={`font-mono font-medium ${
-                  op.operation?.includes('WRITE') ? 'text-yellow-400' :
+                  op.operation?.includes('WRITE') ? 'text-violet-400' :
                   op.operation?.includes('EDIT') ? 'text-purple-400' : 'text-blue-400'
                 }`}>
                   {op.operation?.replace(/^[^\w]*/, '').split(/\s/)[0] || 'OP'}
@@ -179,7 +198,7 @@ function ExpandedFileOps({ operations }) {
             const count = allOps.filter(op => op.operation?.includes(type)).length
             const colors = {
               READ: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
-              WRITE: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
+              WRITE: 'bg-violet-500/10 text-violet-400 border-violet-500/30',
               EDIT: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
               EXEC: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
             }
@@ -201,7 +220,7 @@ function ExpandedFileOps({ operations }) {
               const opType = op.operation?.replace(/^[^\w]*/, '').split(/\s/)[0] || 'OP'
               const colors = {
                 READ: 'border-blue-500/30 bg-blue-500/5',
-                WRITE: 'border-yellow-500/30 bg-yellow-500/5',
+                WRITE: 'border-violet-500/30 bg-violet-500/5',
                 EDIT: 'border-purple-500/30 bg-purple-500/5',
                 EXEC: 'border-cyan-500/30 bg-cyan-500/5',
                 SEARCH: 'border-green-500/30 bg-green-500/5',

@@ -2,7 +2,7 @@ import { BookOpen, Edit3, Settings, Zap, Search, Globe, MessageSquare, Monitor }
 
 const opStyles = {
   READ: { icon: BookOpen, color: 'text-blue-400' },
-  WRITE: { icon: Edit3, color: 'text-yellow-400' },
+  WRITE: { icon: Edit3, color: 'text-violet-400' },
   EDIT: { icon: Settings, color: 'text-purple-400' },
   EXEC: { icon: Zap, color: 'text-cyan-400' },
   SEARCH: { icon: Search, color: 'text-green-400' },

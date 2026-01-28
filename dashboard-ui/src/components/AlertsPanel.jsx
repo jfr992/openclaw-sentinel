@@ -5,21 +5,21 @@ import { runSecurityCheck, getAlertDetails, traceCommand, alertAction } from '..
 const severityColors = {
   critical: 'border-red-500 bg-red-500/5',
   high: 'border-orange-500 bg-orange-500/5',
-  medium: 'border-yellow-500 bg-yellow-500/5',
+  medium: 'border-violet-500 bg-violet-500/5',
   low: 'border-blue-500 bg-blue-500/5',
 }
 
 const severityDots = {
   critical: 'bg-red-500',
   high: 'bg-orange-500',
-  medium: 'bg-yellow-500',
+  medium: 'bg-violet-500',
   low: 'bg-blue-500',
 }
 
 const riskBadgeColors = {
   critical: 'bg-red-500/20 text-red-400 border-red-500/30',
   high: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  medium: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
   low: 'bg-green-500/20 text-green-400 border-green-500/30',
 }
 
@@ -92,16 +92,28 @@ export default function AlertsPanel({ alerts, onRefresh, dimmed, expanded }) {
                   <span className="text-sm font-medium text-white flex-1">
                     {alert.title?.replace(/^[^\w]*/, '').trim()}
                   </span>
+                  <span className="text-xs text-gray-600">{formatTime(alert.timestamp)}</span>
                 </div>
-                <p className="text-xs text-gray-400 line-clamp-2">{alert.description}</p>
                 
-                {alert.details?.matched_text && (
+                {/* Show the actual path/command/target that triggered the alert */}
+                {(alert.details?.full_command || alert.details?.path || alert.details?.file || alert.details?.port) && (
+                  <code className="block text-xs bg-[var(--dark-900)] text-cyan-400 p-2 rounded mt-2 font-mono overflow-x-auto truncate">
+                    {alert.details?.full_command?.slice(0, 100) || 
+                     alert.details?.path || 
+                     alert.details?.file ||
+                     (alert.details?.port && `Port: ${alert.details.port}`) ||
+                     ''}
+                  </code>
+                )}
+                
+                {/* Brief description */}
+                <p className="text-xs text-gray-400 mt-2 line-clamp-1">{alert.description}</p>
+                
+                {alert.details?.matched_text && !alert.details?.full_command && (
                   <code className="block text-xs bg-[var(--dark-900)] text-red-400 p-2 rounded mt-2 font-mono overflow-x-auto">
                     {alert.details.matched_text}
                   </code>
                 )}
-                
-                <p className="text-xs text-gray-600 mt-1">{formatTime(alert.timestamp)}</p>
                 
                 <div className="flex flex-wrap gap-2 mt-2">
                   <button
@@ -205,11 +217,11 @@ function DetailsContent({ data, onTrace }) {
       )}
 
       {alert.details?.recommendation && (
-        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
-          <h4 className="text-sm font-medium text-yellow-400 mb-1 flex items-center gap-1">
+        <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
+          <h4 className="text-sm font-medium text-purple-400 mb-1 flex items-center gap-1">
             <AlertTriangle className="w-4 h-4" /> Recommendation
           </h4>
-          <p className="text-sm text-yellow-200">{alert.details.recommendation}</p>
+          <p className="text-sm text-purple-200">{alert.details.recommendation}</p>
         </div>
       )}
 
@@ -270,7 +282,7 @@ function TraceContent({ data }) {
           <h4 className="text-sm font-medium text-gray-400 mb-2">Files That Would Be Accessed</h4>
           <div className="bg-[var(--dark-900)] rounded p-2 space-y-1">
             {data.files_accessed.map((f, i) => (
-              <div key={i} className="text-xs font-mono text-yellow-400">{f}</div>
+              <div key={i} className="text-xs font-mono text-violet-400">{f}</div>
             ))}
           </div>
         </div>
