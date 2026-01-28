@@ -1,44 +1,48 @@
 #!/bin/bash
-# MoltBot Security Dashboard - Installer
-# 
-# Usage (after cloning):
-#   ./install.sh
+# MoltBot Security Dashboard - Quick Installer
+# An open-source security extension for molt.bot AI agents
 #
-# This installs MoltBot to ~/.moltbot and creates a 'moltbot' command.
+# Usage:
+#   curl -fsSL https://raw.githubusercontent.com/moltbot/security-dashboard/main/install.sh | bash
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-INSTALL_DIR="${MOLTBOT_DIR:-$HOME/.moltbot}"
+INSTALL_DIR="${MOLTBOT_SECURITY_DIR:-$HOME/.moltbot-security}"
+REPO_URL="https://github.com/moltbot/security-dashboard"
 
-echo "🦀 MoltBot Security Dashboard Installer"
-echo "========================================"
+echo ""
+echo "  🦀 MoltBot Security Dashboard"
+echo "  =============================="
+echo "  Security monitoring for AI agents"
 echo ""
 
 # Check prerequisites
 if ! command -v python3 &> /dev/null; then
     echo "❌ Python 3 is required."
-    case "$(uname -s)" in
-        Darwin) echo "   Install with: brew install python3" ;;
-        Linux)  echo "   Install with: sudo apt install python3 python3-venv" ;;
-    esac
+    echo "   macOS: brew install python3"
+    echo "   Linux: sudo apt install python3 python3-venv"
     exit 1
 fi
 
-echo "✓ Python 3 found: $(python3 --version)"
+echo "✓ Python $(python3 --version | cut -d' ' -f2)"
 
-# Create install directory
-echo ""
-echo "📁 Installing to: $INSTALL_DIR"
-mkdir -p "$INSTALL_DIR"
-
-# Copy source files
-echo "📦 Copying files..."
-cp -r "$SCRIPT_DIR/dashboard" "$INSTALL_DIR/"
-cp -r "$SCRIPT_DIR/dashboard-ui/dist" "$INSTALL_DIR/dashboard/static" 2>/dev/null || true
+# Clone or update
+if [ -d "$INSTALL_DIR" ]; then
+    echo "📦 Updating existing installation..."
+    cd "$INSTALL_DIR"
+    git pull -q origin main 2>/dev/null || true
+else
+    echo "📦 Downloading..."
+    git clone --depth 1 -q "$REPO_URL" "$INSTALL_DIR" 2>/dev/null || {
+        # Fallback: download tarball
+        echo "📦 Downloading archive..."
+        mkdir -p "$INSTALL_DIR"
+        curl -fsSL "$REPO_URL/archive/main.tar.gz" | tar -xz --strip-components=1 -C "$INSTALL_DIR"
+    }
+fi
 
 # Setup Python environment
-echo "🐍 Setting up Python environment..."
+echo "🐍 Setting up environment..."
 cd "$INSTALL_DIR/dashboard"
 
 if [ ! -d "venv" ]; then
@@ -49,41 +53,27 @@ source venv/bin/activate
 pip install -q --upgrade pip
 pip install -q -r requirements.txt
 
-echo "✓ Dependencies installed"
-
-# Create launcher script
-cat > "$INSTALL_DIR/moltbot" << 'LAUNCHER'
+# Create launcher
+cat > "$INSTALL_DIR/start" << 'EOF'
 #!/bin/bash
-MOLTBOT_DIR="${MOLTBOT_DIR:-$HOME/.moltbot}"
-cd "$MOLTBOT_DIR/dashboard"
+DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$DIR/dashboard"
 source venv/bin/activate
+echo "🦀 Starting MoltBot Security Dashboard..."
+echo "   http://localhost:5050"
+echo ""
 exec python app.py "$@"
-LAUNCHER
-chmod +x "$INSTALL_DIR/moltbot"
-
-# Create symlink (try without sudo first, then suggest alternatives)
-BIN_DIR="/usr/local/bin"
-SYMLINK_CREATED=false
-
-if [ -w "$BIN_DIR" ]; then
-    ln -sf "$INSTALL_DIR/moltbot" "$BIN_DIR/moltbot"
-    SYMLINK_CREATED=true
-fi
+EOF
+chmod +x "$INSTALL_DIR/start"
 
 echo ""
-echo "========================================"
-echo "✅ MoltBot installed successfully!"
+echo "  ✅ Installed to: $INSTALL_DIR"
 echo ""
-if [ "$SYMLINK_CREATED" = true ]; then
-    echo "Start the dashboard:"
-    echo "  moltbot"
-else
-    echo "Start the dashboard:"
-    echo "  ~/.moltbot/moltbot"
-    echo ""
-    echo "To add 'moltbot' command to PATH, run:"
-    echo "  sudo ln -sf ~/.moltbot/moltbot /usr/local/bin/moltbot"
-fi
+echo "  Start the dashboard:"
+echo "    $INSTALL_DIR/start"
 echo ""
-echo "Dashboard: http://localhost:5050"
-echo "========================================"
+echo "  Or add to your shell config:"
+echo "    alias moltbot-security='$INSTALL_DIR/start'"
+echo ""
+echo "  Dashboard: http://localhost:5050"
+echo ""
