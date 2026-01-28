@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CrabGuard Security Dashboard
+MoltBot Guardian Security Dashboard
 Real-time monitoring of AI agent activity
 """
 
@@ -1097,7 +1097,7 @@ if __name__ == '__main__':
     host = os.environ.get('MOLTBOT_HOST', '127.0.0.1')
     port = int(os.environ.get('MOLTBOT_PORT', 5050))
     
-    print("\n🦀 CrabGuard Security Dashboard")
+    print("\n🦀 MoltBot Guardian Security Dashboard")
     print("=" * 40)
     print(f"Open: http://{host}:{port}")
     print("=" * 40 + "\n")

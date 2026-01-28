@@ -20,6 +20,12 @@ function getViewFromHash() {
 
 export default function App() {
   const [activeView, setActiveView] = useState(getViewFromHash)
+  const [isLoaded, setIsLoaded] = useState(false)
+  
+  // Fade in on mount
+  useEffect(() => {
+    setTimeout(() => setIsLoaded(true), 100)
+  }, [])
   
   // Sync hash with view state
   useEffect(() => {
@@ -46,7 +52,7 @@ export default function App() {
   const isZoomed = activeView !== 'all'
 
   return (
-    <div className="min-h-screen grid-bg">
+    <div className={`min-h-screen grid-bg scanlines transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
       <Sidebar 
         activeView={activeView} 
         onViewChange={setActiveView} 
@@ -63,9 +69,9 @@ export default function App() {
 
         {/* ZOOMED VIEW - Single expanded panel */}
         {isZoomed && (
-          <div className="animate-in fade-in duration-300">
+          <div className="animate-fade-in">
             {activeView === 'alerts' && (
-              <div className="bg-[var(--dark-800)] rounded-xl border border-purple-500/30 overflow-hidden shadow-lg shadow-purple-500/10">
+              <div className="card card-threat glow-red">
                 <AlertsPanel
                   alerts={alerts}
                   onRefresh={refreshAlerts}
@@ -75,7 +81,7 @@ export default function App() {
             )}
 
             {activeView === 'network' && (
-              <div className="bg-[var(--dark-800)] rounded-xl border border-cyan-500/30 overflow-hidden shadow-lg shadow-cyan-500/10">
+              <div className="card card-network glow-cyan">
                 <NetworkPanel
                   connections={data?.connections}
                   expanded={true}
@@ -84,7 +90,7 @@ export default function App() {
             )}
 
             {activeView === 'files' && (
-              <div className="bg-[var(--dark-800)] rounded-xl border border-blue-500/30 overflow-hidden shadow-lg shadow-blue-500/10">
+              <div className="card card-activity glow-purple">
                 <ExpandedFileOps operations={data?.file_ops} />
               </div>
             )}
@@ -95,7 +101,7 @@ export default function App() {
         {!isZoomed && (
           <>
             {/* Main panels */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <ActivityLog
                 operations={data?.file_ops}
                 lastUpdate={data?.updated}
@@ -115,15 +121,16 @@ export default function App() {
         )}
 
         {/* Status indicators */}
-        <div className="fixed bottom-4 right-4 flex items-center gap-2">
+        <div className="fixed bottom-4 right-4 flex items-center gap-2 z-20">
           {loading && (
-            <div className="text-xs text-gray-500 bg-[var(--dark-800)] px-3 py-1.5 rounded-full border border-white/5">
-              Refreshing...
+            <div className="text-xs font-mono text-shell-500 bg-shell-900 px-3 py-1.5 rounded-lg border border-shell-700">
+              <span className="animate-spin inline-block w-3 h-3 border border-neon-cyan border-t-transparent rounded-full mr-2" />
+              SYNCING...
             </div>
           )}
           {error && (
-            <div className="text-xs text-red-400 bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/30">
-              Connection error
+            <div className="text-xs font-mono text-threat-400 bg-threat-500/10 px-3 py-1.5 rounded-lg border border-threat-500/30">
+              CONNECTION ERROR
             </div>
           )}
         </div>
@@ -145,34 +152,34 @@ function FileOpsPanel({ operations }) {
   ) || []
 
   return (
-    <div className="bg-[var(--dark-800)] rounded-xl border border-white/5 overflow-hidden">
-      <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-        <h2 className="font-medium text-white">File Operations</h2>
-        <span className="text-xs text-gray-500">{fileOps.length} ops</span>
+    <div className="card card-activity overflow-hidden">
+      <div className="px-5 py-4 border-b border-shell-700 flex items-center justify-between">
+        <h2 className="font-display font-semibold text-white text-sm uppercase tracking-wide">File Operations</h2>
+        <span className="badge badge-info">{fileOps.length} ops</span>
       </div>
       <div className="p-4 h-64 overflow-y-auto">
         {fileOps.length === 0 ? (
-          <div className="text-gray-500 text-sm text-center py-8">
+          <div className="text-shell-500 text-sm text-center py-8 font-mono">
             No file operations
-            <p className="text-xs text-gray-600 mt-1">
-              {operations?.length ? `(${operations.length} total ops, no READ/WRITE/EDIT)` : 'Waiting for data...'}
+            <p className="text-xs text-shell-600 mt-1">
+              {operations?.length ? `(${operations.length} total ops)` : 'Waiting for data...'}
             </p>
           </div>
         ) : (
           fileOps.slice(0, 15).map((op, i) => (
-            <div key={i} className="py-1.5 border-b border-white/5 last:border-0">
+            <div key={i} className="py-2 border-b border-shell-800 last:border-0">
               <div className="flex items-center gap-2 text-xs">
-                <span className={`font-mono font-medium ${
-                  op.operation?.includes('WRITE') ? 'text-violet-400' :
-                  op.operation?.includes('EDIT') ? 'text-purple-400' : 'text-blue-400'
+                <span className={`font-mono font-semibold ${
+                  op.operation?.includes('WRITE') ? 'text-neon-purple' :
+                  op.operation?.includes('EDIT') ? 'text-neon-pink' : 'text-neon-blue'
                 }`}>
                   {op.operation?.replace(/^[^\w]*/, '').split(/\s/)[0] || 'OP'}
                 </span>
-                <span className="text-gray-600">
-                  {op.timestamp ? new Date(op.timestamp).toLocaleTimeString() : ''}
+                <span className="text-shell-500 font-mono">
+                  {op.timestamp ? new Date(op.timestamp).toLocaleTimeString('en-US', { hour12: false }) : ''}
                 </span>
               </div>
-              <p className="text-xs text-gray-400 font-mono truncate">{op.path || 'unknown'}</p>
+              <p className="text-xs text-shell-400 font-mono truncate mt-1">{op.path || 'unknown'}</p>
             </div>
           ))
         )}
@@ -187,9 +194,9 @@ function ExpandedFileOps({ operations }) {
 
   return (
     <>
-      <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-        <h2 className="font-medium text-white text-lg">File Operations</h2>
-        <span className="text-sm text-gray-400">{allOps.length} total operations</span>
+      <div className="px-5 py-4 border-b border-shell-700 flex items-center justify-between">
+        <h2 className="font-display font-semibold text-white text-lg uppercase tracking-wide">File Operations</h2>
+        <span className="badge badge-info">{allOps.length} total</span>
       </div>
       <div className="p-6">
         {/* Stats row */}
@@ -197,15 +204,16 @@ function ExpandedFileOps({ operations }) {
           {['READ', 'WRITE', 'EDIT', 'EXEC'].map(type => {
             const count = allOps.filter(op => op.operation?.includes(type)).length
             const colors = {
-              READ: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
-              WRITE: 'bg-violet-500/10 text-violet-400 border-violet-500/30',
-              EDIT: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
-              EXEC: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
+              READ: { bg: 'bg-neon-blue/10', border: 'border-neon-blue/30', text: 'text-neon-blue' },
+              WRITE: { bg: 'bg-neon-purple/10', border: 'border-neon-purple/30', text: 'text-neon-purple' },
+              EDIT: { bg: 'bg-neon-pink/10', border: 'border-neon-pink/30', text: 'text-neon-pink' },
+              EXEC: { bg: 'bg-neon-cyan/10', border: 'border-neon-cyan/30', text: 'text-neon-cyan' },
             }
+            const c = colors[type]
             return (
-              <div key={type} className={`rounded-lg p-4 border ${colors[type]}`}>
-                <div className="text-2xl font-bold">{count}</div>
-                <div className="text-sm opacity-80">{type}</div>
+              <div key={type} className={`rounded-lg p-4 border ${c.bg} ${c.border}`}>
+                <div className={`metric-value ${c.text}`}>{count}</div>
+                <div className="metric-label mt-1">{type}</div>
               </div>
             )
           })}
@@ -214,30 +222,30 @@ function ExpandedFileOps({ operations }) {
         {/* Full list */}
         <div className="h-[500px] overflow-y-auto space-y-2">
           {allOps.length === 0 ? (
-            <div className="text-gray-500 text-center py-12">No operations recorded</div>
+            <div className="text-shell-500 text-center py-12 font-mono">No operations recorded</div>
           ) : (
             allOps.map((op, i) => {
               const opType = op.operation?.replace(/^[^\w]*/, '').split(/\s/)[0] || 'OP'
               const colors = {
-                READ: 'border-blue-500/30 bg-blue-500/5',
-                WRITE: 'border-violet-500/30 bg-violet-500/5',
-                EDIT: 'border-purple-500/30 bg-purple-500/5',
-                EXEC: 'border-cyan-500/30 bg-cyan-500/5',
-                SEARCH: 'border-green-500/30 bg-green-500/5',
-                FETCH: 'border-gray-500/30 bg-gray-500/5',
+                READ: 'border-neon-blue/30 bg-neon-blue/5',
+                WRITE: 'border-neon-purple/30 bg-neon-purple/5',
+                EDIT: 'border-neon-pink/30 bg-neon-pink/5',
+                EXEC: 'border-neon-cyan/30 bg-neon-cyan/5',
+                SEARCH: 'border-neon-green/30 bg-neon-green/5',
+                FETCH: 'border-shell-600 bg-shell-800',
               }
               const colorClass = Object.entries(colors).find(([k]) => op.operation?.includes(k))?.[1] || colors.EXEC
 
               return (
                 <div key={i} className={`p-3 rounded-lg border ${colorClass}`}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-mono text-sm font-medium text-white">{opType}</span>
-                    <span className="text-xs text-gray-500">
-                      {op.timestamp ? new Date(op.timestamp).toLocaleString() : ''}
+                    <span className="font-mono text-sm font-semibold text-white">{opType}</span>
+                    <span className="terminal-timestamp">
+                      {op.timestamp ? new Date(op.timestamp).toLocaleString('en-US', { hour12: false }) : ''}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-300 font-mono break-all">{op.path || 'unknown'}</p>
-                  {op.details && <p className="text-xs text-gray-500 mt-1">{op.details}</p>}
+                  <p className="text-sm text-gray-400 font-mono break-all">{op.path || 'unknown'}</p>
+                  {op.details && <p className="text-xs text-shell-500 mt-1">{op.details}</p>}
                 </div>
               )
             })

@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🦀 CrabGuard
+# 🦀 MoltBot Guardian
 
 **Security dashboard extension for MoltBot operations**
 
