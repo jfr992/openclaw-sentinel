@@ -1,7 +1,9 @@
-# OpenTelemetry Collector Configuration for MoltBot Guardian
+# OpenTelemetry Collector Configuration for Clawdbot Metrics
 #
-# This collector receives metrics/traces from Guardian and exports
-# to your observability backend (Prometheus, Jaeger, Grafana, etc.)
+# This collector receives metrics/traces from Clawdbot and exports
+# to Prometheus/Grafana for visualization in Guardian dashboards.
+#
+# Clawdbot publishes: traces, metrics, logs (tokens, costs, tool calls, etc.)
 
 receivers:
   otlp:
