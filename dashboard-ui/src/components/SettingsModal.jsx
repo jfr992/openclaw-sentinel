@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Trash2, Shield, Database, Clock, Lock, Unlock, Key } from 'lucide-react'
+import { X, Trash2, Shield, Database, Clock, Lock, Unlock, Key, Brain, Bell, Wifi } from 'lucide-react'
 
 export default function SettingsModal({ isOpen, onClose }) {
   const [settings, setSettings] = useState({
@@ -17,6 +17,25 @@ export default function SettingsModal({ isOpen, onClose }) {
   const [confirmPassphrase, setConfirmPassphrase] = useState('')
   const [encryptionError, setEncryptionError] = useState('')
   const [encryptionLoading, setEncryptionLoading] = useState(false)
+  
+  // Baseline config state
+  const [baselineConfig, setBaselineConfig] = useState({
+    learning_period: 24,
+    sensitivity: 'medium',
+  })
+  
+  // Notifications state
+  const [notifications, setNotifications] = useState({
+    enabled: false,
+    has_webhook: false,
+    has_slack: false,
+    min_severity: 'medium',
+  })
+  const [webhookUrl, setWebhookUrl] = useState('')
+  const [slackWebhook, setSlackWebhook] = useState('')
+  
+  // Gateway state
+  const [gateway, setGateway] = useState({ connected: false, gateway_url: '', has_token: false })
 
   useEffect(() => {
     if (isOpen) {
@@ -24,8 +43,79 @@ export default function SettingsModal({ isOpen, onClose }) {
       loadSettings()
       loadStats()
       loadEncryptionStatus()
+      loadBaselineConfig()
+      loadNotifications()
+      loadGatewayStatus()
     }
   }, [isOpen])
+  
+  async function loadBaselineConfig() {
+    try {
+      const res = await fetch('/api/baseline/config')
+      if (res.ok) setBaselineConfig(await res.json())
+    } catch (e) {}
+  }
+  
+  async function loadNotifications() {
+    try {
+      const res = await fetch('/api/notifications/config')
+      if (res.ok) setNotifications(await res.json())
+    } catch (e) {}
+  }
+  
+  async function loadGatewayStatus() {
+    try {
+      const res = await fetch('/api/gateway/status')
+      if (res.ok) setGateway(await res.json())
+    } catch (e) {}
+  }
+  
+  async function saveBaselineConfig() {
+    try {
+      await fetch('/api/baseline/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(baselineConfig),
+      })
+    } catch (e) {}
+  }
+  
+  async function saveNotifications() {
+    try {
+      const config = {
+        enabled: notifications.enabled,
+        min_severity: notifications.min_severity,
+      }
+      if (webhookUrl) config.webhook_url = webhookUrl
+      if (slackWebhook) config.slack_webhook = slackWebhook
+      
+      await fetch('/api/notifications/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      })
+      await loadNotifications()
+    } catch (e) {}
+  }
+  
+  async function testNotifications() {
+    try {
+      const res = await fetch('/api/notifications/test', { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        alert(`Test results:\nSlack: ${data.results.slack ?? 'not configured'}\nWebhook: ${data.results.webhook ?? 'not configured'}`)
+      }
+    } catch (e) {
+      alert('Test failed')
+    }
+  }
+  
+  async function connectGateway() {
+    try {
+      const res = await fetch('/api/gateway/connect', { method: 'POST' })
+      if (res.ok) await loadGatewayStatus()
+    } catch (e) {}
+  }
 
   async function loadSettings() {
     try {
@@ -369,6 +459,122 @@ export default function SettingsModal({ isOpen, onClose }) {
                   {encryptionLoading ? 'Unlocking...' : 'Unlock'}
                 </button>
               </div>
+            )}
+          </div>
+
+          {/* Baseline Learning */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Brain className="w-4 h-4 text-purple-400" />
+              <h4 className="text-sm font-medium text-white">Baseline Learning</h4>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Learning Period</label>
+                <select
+                  value={baselineConfig.learning_period}
+                  onChange={(e) => setBaselineConfig({ ...baselineConfig, learning_period: Number(e.target.value) })}
+                  className="w-full bg-[var(--dark-900)] border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                >
+                  <option value={1}>1 hour (fast)</option>
+                  <option value={6}>6 hours</option>
+                  <option value={24}>24 hours (recommended)</option>
+                  <option value={168}>7 days (thorough)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Sensitivity</label>
+                <select
+                  value={baselineConfig.sensitivity}
+                  onChange={(e) => setBaselineConfig({ ...baselineConfig, sensitivity: e.target.value })}
+                  className="w-full bg-[var(--dark-900)] border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                >
+                  <option value="low">Low (5x deviation)</option>
+                  <option value="medium">Medium (3x deviation)</option>
+                  <option value="high">High (2x deviation)</option>
+                  <option value="paranoid">Paranoid (1.5x deviation)</option>
+                </select>
+              </div>
+              <button
+                onClick={saveBaselineConfig}
+                className="px-3 py-1.5 rounded bg-purple-500/20 text-purple-400 text-xs hover:bg-purple-500/30"
+              >
+                Save Baseline Config
+              </button>
+            </div>
+          </div>
+
+          {/* Notifications */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Bell className="w-4 h-4 text-yellow-400" />
+              <h4 className="text-sm font-medium text-white">Notifications</h4>
+              {notifications.enabled && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">Active</span>
+              )}
+            </div>
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={notifications.enabled}
+                  onChange={(e) => setNotifications({ ...notifications, enabled: e.target.checked })}
+                  className="w-4 h-4 rounded"
+                />
+                <span className="text-sm text-gray-300">Enable notifications</span>
+              </label>
+              <input
+                type="url"
+                placeholder="Slack Webhook URL"
+                value={slackWebhook}
+                onChange={(e) => setSlackWebhook(e.target.value)}
+                className="w-full bg-[var(--dark-900)] border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+              />
+              <input
+                type="url"
+                placeholder="Generic Webhook URL"
+                value={webhookUrl}
+                onChange={(e) => setWebhookUrl(e.target.value)}
+                className="w-full bg-[var(--dark-900)] border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={saveNotifications}
+                  className="px-3 py-1.5 rounded bg-yellow-500/20 text-yellow-400 text-xs hover:bg-yellow-500/30"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={testNotifications}
+                  className="px-3 py-1.5 rounded bg-gray-500/20 text-gray-400 text-xs hover:bg-gray-500/30"
+                >
+                  Test
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Gateway Connection */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Wifi className="w-4 h-4 text-cyan-400" />
+              <h4 className="text-sm font-medium text-white">Gateway Connection</h4>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                gateway.connected ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
+              }`}>
+                {gateway.connected ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
+            <p className="text-xs text-gray-400 mb-2">
+              Connect to Clawdbot gateway for real-time events.
+            </p>
+            {!gateway.connected && (
+              <button
+                onClick={connectGateway}
+                className="px-3 py-1.5 rounded bg-cyan-500/20 text-cyan-400 text-xs hover:bg-cyan-500/30"
+              >
+                Connect
+              </button>
             )}
           </div>
 

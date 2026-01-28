@@ -53,9 +53,32 @@ export default function AlertsPanel({ alerts, onRefresh, dimmed, expanded }) {
     setModal({ type: 'trace', data: result })
   }
 
-  async function handleAction(action, alertId, sessionFile) {
-    await alertAction(action, alertId, sessionFile)
-    if (action === 'dismiss') onRefresh()
+  async function handleAction(action, alertId, data) {
+    if (action === 'whitelist' && data) {
+      // Mark as safe - whitelist the pattern
+      try {
+        await fetch('/api/baseline/whitelist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: data.details?.tool || 'EXEC',
+            details: {
+              command: data.details?.command,
+              path: data.details?.path,
+              remote: data.details?.remote,
+            }
+          }),
+        })
+        // Also dismiss the alert
+        await alertAction('dismiss', alertId, '')
+        onRefresh()
+      } catch (e) {
+        console.error('Failed to whitelist:', e)
+      }
+    } else {
+      await alertAction(action, alertId, data)
+      if (action === 'dismiss') onRefresh()
+    }
   }
 
   return (
@@ -140,6 +163,13 @@ export default function AlertsPanel({ alerts, onRefresh, dimmed, expanded }) {
                       Kill Session
                     </button>
                   )}
+                  
+                  <button
+                    onClick={() => handleAction('whitelist', i, alert)}
+                    className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
+                  >
+                    Mark Safe
+                  </button>
                   
                   <button
                     onClick={() => handleAction('dismiss', i, '')}

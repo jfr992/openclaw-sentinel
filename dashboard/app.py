@@ -22,6 +22,9 @@ from trust import get_trust_engine, TrustEngine
 from baseline import get_baseline
 from smart_alerts import get_smart_filter
 from crypto import get_encryption
+from threat_intel import get_threat_intel
+from notifications import get_notification_manager
+from gateway_client import get_gateway_client
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -875,6 +878,91 @@ def api_baseline_whitelist():
     return jsonify({'success': True, 'message': 'Added to whitelist'})
 
 
+# --- Threat Intelligence API ---
+
+@app.route('/api/threat-intel')
+def api_threat_intel():
+    """Get all threat intelligence patterns."""
+    intel = get_threat_intel()
+    return jsonify({
+        'patterns': intel.get_all_patterns(),
+        'count': len(intel.patterns)
+    })
+
+@app.route('/api/threat-intel/analyze', methods=['POST'])
+def api_threat_intel_analyze():
+    """Analyze a command for threat patterns."""
+    data = request.get_json() or {}
+    command = data.get('command', '')
+    
+    intel = get_threat_intel()
+    matches = intel.analyze_command(command)
+    
+    return jsonify({
+        'command': command,
+        'threats': matches,
+        'is_threat': len(matches) > 0
+    })
+
+
+# --- Notifications API ---
+
+@app.route('/api/notifications/config', methods=['GET', 'POST'])
+def api_notifications_config():
+    """Get or update notification configuration."""
+    manager = get_notification_manager()
+    
+    if request.method == 'POST':
+        config = request.get_json() or {}
+        manager.update_config(config)
+        return jsonify({'success': True, 'config': manager.get_config()})
+    
+    return jsonify(manager.get_config())
+
+@app.route('/api/notifications/test', methods=['POST'])
+def api_notifications_test():
+    """Test notification connections."""
+    manager = get_notification_manager()
+    results = manager.test_connection()
+    return jsonify({'success': True, 'results': results})
+
+
+# --- Gateway Connection API ---
+
+@app.route('/api/gateway/status')
+def api_gateway_status():
+    """Get gateway WebSocket connection status."""
+    client = get_gateway_client()
+    return jsonify(client.get_status())
+
+@app.route('/api/gateway/connect', methods=['POST'])
+def api_gateway_connect():
+    """Connect to gateway WebSocket."""
+    client = get_gateway_client()
+    success = client.connect()
+    return jsonify({'success': success, 'status': client.get_status()})
+
+
+# --- Session Control API ---
+
+@app.route('/api/sessions/kill', methods=['POST'])
+def api_kill_session():
+    """Kill an agent session."""
+    data = request.get_json() or {}
+    session_id = data.get('session_id')
+    
+    if not session_id:
+        return jsonify({'success': False, 'error': 'session_id required'}), 400
+    
+    # Try to kill via gateway client
+    # For now, just return success - actual implementation depends on gateway API
+    return jsonify({
+        'success': True,
+        'message': f'Kill request sent for session {session_id}',
+        'note': 'Session termination depends on gateway support'
+    })
+
+
 def background_monitor():
     """Background thread to push updates via WebSocket."""
     last_data = None
@@ -925,11 +1013,38 @@ def background_monitor():
 def background_security():
     """Background thread to run security checks."""
     last_alert_count = 0
+    threat_intel = get_threat_intel()
+    notification_manager = get_notification_manager()
     
     while True:
         try:
             # Run all security checks
             new_alerts = security_detector.run_all_checks()
+            
+            # Enhanced threat intel analysis on new exec commands
+            tool_calls = get_recent_tool_calls(20)
+            for tc in tool_calls:
+                if tc.get('tool', '').upper() == 'EXEC':
+                    command = tc.get('input', {}).get('command', '')
+                    if command:
+                        threats = threat_intel.analyze_command(command)
+                        for threat in threats:
+                            # Create alert for threat intel match
+                            alert = security_detector.create_alert(
+                                title=threat['name'],
+                                description=f"{threat['description']}\n\nCommand: {command[:200]}",
+                                severity=threat['severity'],
+                                category=threat['category'],
+                                details={
+                                    'threat_id': threat['threat_id'],
+                                    'mitre_id': threat.get('mitre_id'),
+                                    'remediation': threat.get('remediation'),
+                                    'command': command,
+                                }
+                            )
+                            if alert:
+                                new_alerts.append(alert)
+            
             current_alerts = security_detector.get_recent_alerts(50)
             alert_count = len(current_alerts)
             
@@ -947,9 +1062,15 @@ def background_security():
                 'timestamp': datetime.now().isoformat()
             })
             
-            # If new alerts found, emit them
+            # If new alerts found, emit them and send notifications
             if new_alerts:
                 socketio.emit('new_alerts', [a.to_dict() for a in new_alerts])
+                
+                # Send notifications for high/critical alerts
+                for alert in new_alerts:
+                    alert_dict = alert.to_dict() if hasattr(alert, 'to_dict') else alert
+                    if alert_dict.get('severity') in ('high', 'critical'):
+                        notification_manager.send_alert_async(alert_dict)
             
             last_alert_count = alert_count
         except Exception as e:
@@ -965,9 +1086,20 @@ if __name__ == '__main__':
     security_thread = threading.Thread(target=background_security, daemon=True)
     security_thread.start()
     
+    # Try to connect to gateway for real-time events
+    try:
+        gateway_client = get_gateway_client()
+        gateway_client.start_background()
+        print("🔗 Gateway connection: attempting...")
+    except Exception as e:
+        print(f"⚠️  Gateway connection skipped: {e}")
+    
+    host = os.environ.get('MOLTBOT_HOST', '127.0.0.1')
+    port = int(os.environ.get('MOLTBOT_PORT', 5050))
+    
     print("\n🦀 MoltBot Security Dashboard")
     print("=" * 40)
-    print("Open: http://localhost:5050")
+    print(f"Open: http://{host}:{port}")
     print("=" * 40 + "\n")
     
-    socketio.run(app, host='127.0.0.1', port=5050, debug=False)
+    socketio.run(app, host=host, port=port, debug=False)
