@@ -29,7 +29,7 @@ def create_connect_params(token: Optional[str] = None) -> Dict[str, Any]:
             "mode": "cli",
         },
         "role": "operator",
-        "scopes": ["operator.read"],
+        "scopes": ["operator.read", "operator.write", "operator.admin"],
         "caps": [],
         "commands": [],
         "permissions": {},
