@@ -183,7 +183,8 @@ class SecurityDetector:
 
         # Check for new connections (not in known list)
         # Only alert if baseline is learned (to avoid spammy startup alerts)
-        baseline = self.baseline_file.exists()
+        baseline_engine = get_baseline()
+        baseline_learned = baseline_engine.baseline.get('learned', False) if baseline_engine else False
         known = set(self.state.get('known_connections', []))
         new_connections = current - known
 
@@ -195,7 +196,7 @@ class SecurityDetector:
             if any(safe in conn for safe in self.SAFE_HOSTS):
                 continue
             # Only alert after baseline is learned (reduces startup noise)
-            if not baseline:
+            if not baseline_learned:
                 continue
             # New external connection to unknown host
             alerts.append(Alert(
