@@ -5,6 +5,7 @@
 **Security dashboard for AI agent operations**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io-blue.svg)](https://github.com/jfr992/moltbot-security-dashboard/pkgs/container/moltbot-guardian)
 
 </div>
 
@@ -12,20 +13,11 @@
 
 ## Quick Start
 
-**Docker (recommended):**
 ```bash
 docker run -d --name moltbot-guardian \
   -p 5050:5050 \
   -v ~/.clawdbot:/data:ro \
-  --read-only --security-opt no-new-privileges:true \
-  ghcr.io/jfr992/moltbot-security-dashboard:latest
-```
-
-**From source:**
-```bash
-git clone https://github.com/jfr992/moltbot-security-dashboard.git
-cd moltbot-security-dashboard
-./dev.sh setup && ./dev.sh start
+  ghcr.io/jfr992/moltbot-guardian:latest
 ```
 
 **Dashboard:** http://localhost:5050
@@ -41,6 +33,7 @@ cd moltbot-security-dashboard
 | 🔐 Encrypted Baselines | AES-256-GCM for sensitive envs |
 | 🌐 Network Monitor | Track connections (native only) |
 | ⚡ Live Events | Real-time via gateway WebSocket |
+| 📈 OpenTelemetry | Traces, metrics, logs (optional) |
 
 ---
 
@@ -48,10 +41,10 @@ cd moltbot-security-dashboard
 
 **Data sources:**
 1. **Session files** — Parses `~/.clawdbot/agents/*.jsonl`
-2. **Gateway WebSocket** — Live events from Clawdbot (`ws://localhost:18789`)
+2. **Gateway WebSocket** — Live events from Clawdbot
 3. **Network (native only)** — Uses `lsof` for connection tracking
 
-**Docker limitation:** Network monitoring disabled (container can't see host processes). Run natively for full visibility.
+**Docker note:** Network monitoring disabled in containers.
 
 ---
 
@@ -61,7 +54,35 @@ cd moltbot-security-dashboard
 |----------|---------|-------------|
 | `MOLTBOT_PORT` | `5050` | Dashboard port |
 | `CLAWDBOT_DIR` | `~/.clawdbot` | Agent logs |
-| `CLAWDBOT_URL` | `ws://127.0.0.1:18789` | Gateway URL (auto-detects Docker) |
+| `CLAWDBOT_URL` | auto | Gateway URL |
+
+---
+
+## OpenTelemetry (Optional)
+
+> ⚠️ **Known Issue:** OTEL integration requires additional setup.
+> See [#1](https://github.com/jfr992/moltbot-security-dashboard/issues/1)
+
+Enable in `~/.clawdbot/clawdbot.json`:
+```json
+{
+  "diagnostics": {
+    "otel": {
+      "enabled": true,
+      "endpoint": "http://localhost:4318"
+    }
+  }
+}
+```
+
+Run with observability stack:
+```bash
+docker compose -f docker-compose.otel.yml up -d
+```
+
+**Dashboards:**
+- Grafana: http://localhost:3000
+- Jaeger: http://localhost:16686
 
 ---
 
@@ -76,14 +97,6 @@ cd moltbot-security-dashboard
 
 ---
 
-## Live Events
-
-Header shows **LIVE** (cyan) when connected to gateway, **OFFLINE** (gray) when not.
-
-Auto-configures from `~/.clawdbot/clawdbot.json`. Docker uses `host.docker.internal` automatically.
-
----
-
 ## License
 
-MIT — [molt.bot](https://molt.bot)
+MIT — Juan Reyes

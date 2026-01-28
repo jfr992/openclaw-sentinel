@@ -1,10 +1,10 @@
-# MoltBot Guardian - Docker Compose
-# Usage: docker compose up -d
+# MoltBot Guardian - Development (builds from source)
+# Usage: docker compose -f docker-compose.dev.yml up --build
 
 services:
   guardian:
-    image: ghcr.io/jfr992/moltbot-guardian:latest
-    container_name: moltbot-guardian
+    build: .
+    container_name: moltbot-guardian-dev
     ports:
       - "5050:5050"
     volumes:
@@ -15,10 +15,6 @@ services:
       MOLTBOT_PORT: "5050"
       CLAWDBOT_DIR: "/data"
     restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
 
 volumes:
   guardian-data:
