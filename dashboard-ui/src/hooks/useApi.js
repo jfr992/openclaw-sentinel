@@ -18,12 +18,25 @@ export function useActivity(refreshInterval = 5000) {
       setData(json)
       setError(null)
 
-      // If we haven't received live events in 30s, we're in polling mode
-      const now = Date.now()
-      if (lastLiveEventRef.current && (now - lastLiveEventRef.current) < 30000) {
-        setConnectionMode('live')
-      } else if (!error) {
-        setConnectionMode('polling')
+      // Check gateway status to determine mode
+      try {
+        const gwRes = await fetch('/api/gateway/status')
+        const gwStatus = await gwRes.json()
+        if (gwStatus.connected) {
+          setConnectionMode('live')
+          setGatewayConnected(true)
+        } else {
+          setConnectionMode('polling')
+          setGatewayConnected(false)
+        }
+      } catch {
+        // If gateway check fails, fall back to event-based detection
+        const now = Date.now()
+        if (lastLiveEventRef.current && (now - lastLiveEventRef.current) < 30000) {
+          setConnectionMode('live')
+        } else if (!error) {
+          setConnectionMode('polling')
+        }
       }
     } catch (e) {
       setError(e.message)
