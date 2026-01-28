@@ -13,23 +13,23 @@
   <rect x="10" y="22" width="12" height="2" fill="#4c1d95"/>
   <rect x="12" y="24" width="8" height="2" fill="#4c1d95"/>
   <rect x="14" y="26" width="4" height="2" fill="#3b0764"/>
-  
+
   <!-- Crab body (Minecraft pixel style) -->
   <rect x="12" y="8" width="8" height="4" fill="#f97316"/>
   <rect x="10" y="10" width="12" height="4" fill="#ea580c"/>
-  
+
   <!-- Crab eyes -->
   <rect x="12" y="9" width="2" height="2" fill="#1f2937"/>
   <rect x="18" y="9" width="2" height="2" fill="#1f2937"/>
   <rect x="13" y="9" width="1" height="1" fill="#ffffff"/>
   <rect x="19" y="9" width="1" height="1" fill="#ffffff"/>
-  
+
   <!-- Crab claws -->
   <rect x="6" y="10" width="4" height="2" fill="#f97316"/>
   <rect x="22" y="10" width="4" height="2" fill="#f97316"/>
   <rect x="6" y="8" width="2" height="2" fill="#fb923c"/>
   <rect x="24" y="8" width="2" height="2" fill="#fb923c"/>
-  
+
   <!-- Crab legs -->
   <rect x="8" y="14" width="2" height="2" fill="#c2410c"/>
   <rect x="22" y="14" width="2" height="2" fill="#c2410c"/>

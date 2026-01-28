@@ -14,7 +14,7 @@ CLAWDBOT_CONFIG = Path.home() / '.clawdbot' / 'clawdbot.json'
 
 class GatewayClient:
     """WebSocket client for Clawdbot gateway."""
-    
+
     def __init__(self):
         self.sio = socketio.Client(reconnection=True, reconnection_attempts=0)
         self.connected = False
@@ -27,7 +27,7 @@ class GatewayClient:
             'error': [],
         }
         self._setup_handlers()
-    
+
     def _load_token(self) -> Optional[str]:
         """Load gateway token from clawdbot config."""
         if CLAWDBOT_CONFIG.exists():
@@ -37,44 +37,44 @@ class GatewayClient:
             except:
                 pass
         return None
-    
+
     def _setup_handlers(self):
         """Set up socket.io event handlers."""
-        
+
         @self.sio.event
         def connect():
             self.connected = True
             print(f"[GatewayClient] Connected to {self.gateway_url}")
-        
+
         @self.sio.event
         def disconnect():
             self.connected = False
             print("[GatewayClient] Disconnected")
-        
+
         @self.sio.event
         def connect_error(data):
             print(f"[GatewayClient] Connection error: {data}")
             for cb in self.callbacks['error']:
                 cb({'type': 'connect_error', 'data': data})
-        
+
         # Handle tool calls (exec, read, write, etc.)
         @self.sio.on('tool')
         def on_tool(data):
             for cb in self.callbacks['tool_call']:
                 cb(data)
-        
+
         # Handle messages
         @self.sio.on('message')
         def on_message(data):
             for cb in self.callbacks['message']:
                 cb(data)
-        
+
         # Handle session events
         @self.sio.on('session')
         def on_session(data):
             for cb in self.callbacks['session']:
                 cb(data)
-        
+
         # Generic event handler for unknown events
         @self.sio.on('*')
         def on_any(event, data):
@@ -82,17 +82,17 @@ class GatewayClient:
             if isinstance(data, dict) and 'tool' in str(data).lower():
                 for cb in self.callbacks['tool_call']:
                     cb({'event': event, **data})
-    
+
     def on(self, event: str, callback: Callable):
         """Register a callback for an event type."""
         if event in self.callbacks:
             self.callbacks[event].append(callback)
-    
+
     def connect(self):
         """Connect to gateway WebSocket."""
         if self.connected:
             return True
-        
+
         try:
             auth = {'token': self.token} if self.token else {}
             self.sio.connect(
@@ -105,12 +105,12 @@ class GatewayClient:
         except Exception as e:
             print(f"[GatewayClient] Failed to connect: {e}")
             return False
-    
+
     def disconnect(self):
         """Disconnect from gateway."""
         if self.connected:
             self.sio.disconnect()
-    
+
     def start_background(self):
         """Start connection in background thread."""
         def run():
@@ -118,10 +118,10 @@ class GatewayClient:
                 if not self.connected:
                     self.connect()
                 time.sleep(5)
-        
+
         thread = threading.Thread(target=run, daemon=True)
         thread.start()
-    
+
     def get_status(self) -> dict:
         """Get connection status."""
         return {

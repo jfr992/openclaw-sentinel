@@ -80,7 +80,7 @@ THREAT_PATTERNS: List[ThreatPattern] = [
         mitre_id="T1059",
         remediation="Check what's connecting to this listener."
     ),
-    
+
     # === PERSISTENCE ===
     ThreatPattern(
         id="PERS-001",
@@ -112,7 +112,7 @@ THREAT_PATTERNS: List[ThreatPattern] = [
         mitre_id="T1546.004",
         remediation="Review shell config files for unauthorized additions."
     ),
-    
+
     # === CREDENTIAL ACCESS ===
     ThreatPattern(
         id="CRED-001",
@@ -154,7 +154,7 @@ THREAT_PATTERNS: List[ThreatPattern] = [
         mitre_id="T1555.001",
         remediation="Review keychain access logs."
     ),
-    
+
     # === EXFILTRATION ===
     ThreatPattern(
         id="EXFIL-001",
@@ -186,7 +186,7 @@ THREAT_PATTERNS: List[ThreatPattern] = [
         mitre_id="T1048.003",
         remediation="Monitor DNS queries for encoded data."
     ),
-    
+
     # === DEFENSE EVASION ===
     ThreatPattern(
         id="EVADE-001",
@@ -208,7 +208,7 @@ THREAT_PATTERNS: List[ThreatPattern] = [
         mitre_id="T1070.002",
         remediation="Check backup logs or remote logging."
     ),
-    
+
     # === PRIVILEGE ESCALATION ===
     ThreatPattern(
         id="PRIVESC-001",
@@ -252,15 +252,15 @@ SUSPICIOUS_PORTS = {
 
 class ThreatIntel:
     """Threat intelligence engine."""
-    
+
     def __init__(self):
         self.patterns = THREAT_PATTERNS
         self._compiled = {p.id: re.compile(p.pattern, re.IGNORECASE) for p in self.patterns}
-    
+
     def analyze_command(self, command: str) -> List[Dict]:
         """Analyze a command for known threat patterns."""
         matches = []
-        
+
         for pattern in self.patterns:
             compiled = self._compiled[pattern.id]
             if compiled.search(command):
@@ -274,9 +274,9 @@ class ThreatIntel:
                     'remediation': pattern.remediation,
                     'matched_pattern': pattern.pattern,
                 })
-        
+
         return matches
-    
+
     def analyze_network(self, remote: str, port: int) -> Optional[Dict]:
         """Analyze network connection for suspicious activity."""
         if port in SUSPICIOUS_PORTS:
@@ -289,7 +289,7 @@ class ThreatIntel:
                 'remediation': f'Investigate why port {port} is being used.',
             }
         return None
-    
+
     def get_all_patterns(self) -> List[Dict]:
         """Get all threat patterns for display."""
         return [

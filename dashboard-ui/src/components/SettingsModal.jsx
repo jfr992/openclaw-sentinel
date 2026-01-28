@@ -10,20 +10,20 @@ export default function SettingsModal({ isOpen, onClose }) {
   const [stats, setStats] = useState(null)
   const [purging, setPurging] = useState(false)
   const [saved, setSaved] = useState(false)
-  
+
   // Encryption state
   const [encryption, setEncryption] = useState({ enabled: false, unlocked: false, available: true })
   const [passphrase, setPassphrase] = useState('')
   const [confirmPassphrase, setConfirmPassphrase] = useState('')
   const [encryptionError, setEncryptionError] = useState('')
   const [encryptionLoading, setEncryptionLoading] = useState(false)
-  
+
   // Baseline config state
   const [baselineConfig, setBaselineConfig] = useState({
     learning_period: 24,
     sensitivity: 'medium',
   })
-  
+
   // Notifications state
   const [notifications, setNotifications] = useState({
     enabled: false,
@@ -33,7 +33,7 @@ export default function SettingsModal({ isOpen, onClose }) {
   })
   const [webhookUrl, setWebhookUrl] = useState('')
   const [slackWebhook, setSlackWebhook] = useState('')
-  
+
   // Gateway state
   const [gateway, setGateway] = useState({ connected: false, gateway_url: '', has_token: false })
 
@@ -48,28 +48,28 @@ export default function SettingsModal({ isOpen, onClose }) {
       loadGatewayStatus()
     }
   }, [isOpen])
-  
+
   async function loadBaselineConfig() {
     try {
       const res = await fetch('/api/baseline/config')
       if (res.ok) setBaselineConfig(await res.json())
     } catch (e) {}
   }
-  
+
   async function loadNotifications() {
     try {
       const res = await fetch('/api/notifications/config')
       if (res.ok) setNotifications(await res.json())
     } catch (e) {}
   }
-  
+
   async function loadGatewayStatus() {
     try {
       const res = await fetch('/api/gateway/status')
       if (res.ok) setGateway(await res.json())
     } catch (e) {}
   }
-  
+
   async function saveBaselineConfig() {
     try {
       await fetch('/api/baseline/config', {
@@ -79,7 +79,7 @@ export default function SettingsModal({ isOpen, onClose }) {
       })
     } catch (e) {}
   }
-  
+
   async function saveNotifications() {
     try {
       const config = {
@@ -88,7 +88,7 @@ export default function SettingsModal({ isOpen, onClose }) {
       }
       if (webhookUrl) config.webhook_url = webhookUrl
       if (slackWebhook) config.slack_webhook = slackWebhook
-      
+
       await fetch('/api/notifications/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -97,7 +97,7 @@ export default function SettingsModal({ isOpen, onClose }) {
       await loadNotifications()
     } catch (e) {}
   }
-  
+
   async function testNotifications() {
     try {
       const res = await fetch('/api/notifications/test', { method: 'POST' })
@@ -109,7 +109,7 @@ export default function SettingsModal({ isOpen, onClose }) {
       alert('Test failed')
     }
   }
-  
+
   async function connectGateway() {
     try {
       const res = await fetch('/api/gateway/connect', { method: 'POST' })
@@ -187,7 +187,7 @@ export default function SettingsModal({ isOpen, onClose }) {
       setEncryptionError('Passphrases do not match')
       return
     }
-    
+
     setEncryptionLoading(true)
     setEncryptionError('')
     try {
@@ -242,7 +242,7 @@ export default function SettingsModal({ isOpen, onClose }) {
 
   async function disableEncryption() {
     if (!confirm('This will disable encryption and store baseline in plain text. Continue?')) return
-    
+
     setEncryptionLoading(true)
     try {
       const res = await fetch('/api/encryption/disable', {
@@ -312,7 +312,7 @@ export default function SettingsModal({ isOpen, onClose }) {
               <Clock className="w-4 h-4 text-purple-400" />
               <h4 className="text-sm font-medium text-white">Data Retention</h4>
             </div>
-            
+
             <div className="space-y-3">
               <div>
                 <label className="text-sm text-gray-400 block mb-1">Keep logs for</label>
@@ -348,7 +348,7 @@ export default function SettingsModal({ isOpen, onClose }) {
               <Shield className="w-4 h-4 text-violet-400" />
               <h4 className="text-sm font-medium text-white">Alert Threshold</h4>
             </div>
-            
+
             <select
               value={settings.alertThreshold}
               onChange={(e) => setSettings({ ...settings, alertThreshold: e.target.value })}
@@ -368,21 +368,21 @@ export default function SettingsModal({ isOpen, onClose }) {
               <h4 className="text-sm font-medium text-white">Baseline Encryption</h4>
               {encryption.enabled && (
                 <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  encryption.unlocked 
-                    ? 'bg-green-500/20 text-green-400' 
+                  encryption.unlocked
+                    ? 'bg-green-500/20 text-green-400'
                     : 'bg-yellow-500/20 text-yellow-400'
                 }`}>
                   {encryption.unlocked ? 'Unlocked' : 'Locked'}
                 </span>
               )}
             </div>
-            
+
             {!encryption.available && (
               <p className="text-xs text-yellow-400 mb-2">
                 ⚠️ cryptography package not installed. Using fallback HMAC mode (integrity only).
               </p>
             )}
-            
+
             {!encryption.enabled ? (
               <div className="space-y-3">
                 <p className="text-xs text-gray-400">
@@ -588,7 +588,7 @@ export default function SettingsModal({ isOpen, onClose }) {
               <Trash2 className="w-4 h-4" />
               {purging ? 'Purging...' : 'Purge Now'}
             </button>
-            
+
             <button
               onClick={saveSettings}
               className="flex-1 px-4 py-2 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-colors text-sm"

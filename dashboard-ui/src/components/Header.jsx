@@ -35,11 +35,11 @@ export default function Header({ onOpenPrivacy }) {
 
   useEffect(() => {
     const socket = io(window.location.origin)
-    
+
     socket.on('security_status', (data) => {
       setSecurityStatus(data)
     })
-    
+
     fetch('/api/alerts')
       .then(res => res.json())
       .then(alerts => {
@@ -48,7 +48,7 @@ export default function Header({ onOpenPrivacy }) {
         }
       })
       .catch(() => {})
-    
+
     return () => socket.disconnect()
   }, [])
 
@@ -60,7 +60,7 @@ export default function Header({ onOpenPrivacy }) {
       <div className="flex items-center gap-4">
         {/* Shield Icon with Glow */}
         <div className={`relative ${isAlert ? 'animate-glow-pulse' : ''}`}>
-          <Shield 
+          <Shield
             className={`w-10 h-10 ${isAlert ? 'text-threat-400' : 'text-threat-500'}`}
             style={{ filter: `drop-shadow(0 0 ${isAlert ? '15px' : '10px'} rgba(239, 68, 68, ${isAlert ? '0.6' : '0.4'}))` }}
           />
@@ -71,24 +71,24 @@ export default function Header({ onOpenPrivacy }) {
             </span>
           )}
         </div>
-        
+
         <div>
           <h1 className="header-title">MOLTBOT GUARDIAN</h1>
           <p className="header-subtitle mt-1">Security Dashboard for AI Operations</p>
         </div>
       </div>
-      
+
       <div className="flex items-center gap-3">
         {/* Baseline Status */}
         {baseline && (
-          <div 
+          <div
             className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
-              baseline.learned 
-                ? 'bg-neon-purple/10 border-neon-purple/30 glow-purple' 
+              baseline.learned
+                ? 'bg-neon-purple/10 border-neon-purple/30 glow-purple'
                 : 'bg-shell-800 border-shell-600'
             }`}
-            title={baseline.learned 
-              ? `Baseline learned (${baseline.hours_of_data}h of data)` 
+            title={baseline.learned
+              ? `Baseline learned (${baseline.hours_of_data}h of data)`
               : `Learning baseline: ${baseline.windows_collected}/${baseline.windows_needed} hours`
             }
           >
@@ -100,7 +100,7 @@ export default function Header({ onOpenPrivacy }) {
         )}
 
         {/* Privacy Indicator */}
-        <button 
+        <button
           onClick={onOpenPrivacy}
           className="flex items-center gap-2 px-3 py-2 rounded-lg bg-shell-800 border border-shell-600 hover:border-neon-cyan/50 hover:bg-shell-700 transition-all"
           title="Click for data flow info"
@@ -111,15 +111,15 @@ export default function Header({ onOpenPrivacy }) {
 
         {/* Security Status */}
         <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
-          isAlert 
-            ? 'bg-threat-500/10 border-threat-500/30' 
+          isAlert
+            ? 'bg-threat-500/10 border-threat-500/30'
             : 'bg-status-safe/10 border-status-safe/30'
         }`}>
           <div className={`status-dot ${isAlert ? 'status-alert' : 'status-online'}`} />
           <span className={`text-xs font-mono ${isAlert ? 'text-threat-400' : 'text-status-safe'}`}>
-            {isAlert 
+            {isAlert
               ? `${securityStatus.alert_count} ALERT${securityStatus.alert_count !== 1 ? 'S' : ''}`
-              : securityStatus.timestamp 
+              : securityStatus.timestamp
                 ? `CHECKED ${formatTimeAgo(securityStatus.timestamp).toUpperCase()}`
                 : 'READY'
             }

@@ -40,7 +40,7 @@ export default function ActivityLog({ operations, lastUpdate, dimmed }) {
           {lastUpdate ? `SYNC ${formatTime(lastUpdate)}` : 'SYNCING...'}
         </span>
       </div>
-      
+
       <div className="p-4 h-96 overflow-y-auto">
         {!operations || operations.length === 0 ? (
           <div className="text-shell-500 text-sm text-center py-8 font-mono">
@@ -53,7 +53,7 @@ export default function ActivityLog({ operations, lastUpdate, dimmed }) {
               const style = getOpStyle(op.operation)
               const OpIcon = style.icon
               const opLabel = op.operation?.replace(/^[^\w]*/, '').split(/\s/)[0] || 'OP'
-              
+
               return (
                 <div key={i} className="animate-slide-in flex items-start gap-3 p-2 rounded-lg hover:bg-shell-800 transition-colors" style={{ animationDelay: `${i * 30}ms` }}>
                   <div className={`w-8 h-8 rounded-lg ${style.bg} flex items-center justify-center flex-shrink-0`}>

@@ -34,9 +34,9 @@ export default function TrustPanel({ expanded }) {
       await fetch(getApiUrl('/api/trust/session'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          sessionId, 
-          action: currentlyTrusted ? 'untrust' : 'trust' 
+        body: JSON.stringify({
+          sessionId,
+          action: currentlyTrusted ? 'untrust' : 'trust'
         })
       })
       loadData()
@@ -79,12 +79,12 @@ export default function TrustPanel({ expanded }) {
           <p className="text-xs text-gray-500 mb-4">
             Mark your agent sessions as trusted. Alerts from trusted sessions will show context about user requests.
           </p>
-          
+
           {loading ? (
             <div className="text-gray-500 text-sm">Loading sessions...</div>
           ) : sessions.length === 0 ? (
             <div className="text-violet-500 text-sm">
-              No active sessions found. 
+              No active sessions found.
               <button onClick={loadData} className="ml-2 underline">Retry</button>
               <p className="text-xs text-gray-500 mt-1">
                 Looking in ~/.clawdbot/agents/ for sessions active in last hour
@@ -93,7 +93,7 @@ export default function TrustPanel({ expanded }) {
           ) : (
             <div className="space-y-2">
               {sessions.map(session => (
-                <div 
+                <div
                   key={session.id}
                   className="flex items-center justify-between p-3 bg-[var(--dark-900)] rounded-lg"
                 >

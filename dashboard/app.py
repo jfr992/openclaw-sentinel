@@ -46,12 +46,12 @@ def parse_session_file(filepath, limit=100):
             # Seek to end and read backwards
             f.seek(0, 2)
             file_size = f.tell()
-            
+
             # Read last chunk (up to 500KB)
             chunk_size = min(500000, file_size)
             f.seek(max(0, file_size - chunk_size))
             content = f.read().decode('utf-8', errors='ignore')
-            
+
             lines = content.strip().split('\n')
             # Take last N lines
             for line in lines[-limit:]:
@@ -68,25 +68,25 @@ def parse_session_file(filepath, limit=100):
 def get_recent_tool_calls(limit=50):
     """Extract recent tool calls from session files."""
     tool_calls = []
-    
+
     # Find all session JSONL files
     pattern = str(SESSIONS_DIR / '**' / '*.jsonl')
-    session_files = sorted(glob.glob(pattern, recursive=True), 
+    session_files = sorted(glob.glob(pattern, recursive=True),
                           key=os.path.getmtime, reverse=True)[:5]
-    
+
     for filepath in session_files:
         events = parse_session_file(filepath, limit=200)
         for event in events:
             if event.get('type') != 'message':
                 continue
-            
+
             msg = event.get('message', {})
             if msg.get('role') != 'assistant':
                 continue
-                
+
             content = msg.get('content', [])
             timestamp = event.get('timestamp', msg.get('timestamp', ''))
-            
+
             if isinstance(content, list):
                 for item in content:
                     if isinstance(item, dict) and item.get('type') == 'toolCall':
@@ -96,7 +96,7 @@ def get_recent_tool_calls(limit=50):
                             'input': item.get('arguments', {}),
                             'session': os.path.basename(filepath)[:8]
                         })
-    
+
     return sorted(tool_calls, key=lambda x: x.get('timestamp', ''), reverse=True)[:limit]
 
 def get_network_connections():
@@ -136,25 +136,25 @@ def get_detailed_network():
             'inbound': 0,
         }
     }
-    
+
     # Known suspicious ports/hosts
     suspicious_ports = {22: 'SSH', 23: 'Telnet', 3389: 'RDP', 4444: 'Metasploit', 5555: 'ADB'}
     suspicious_hosts = ['pastebin.com', 'ngrok.io', 'serveo.net', 'localtunnel.me']
-    
+
     try:
         # Get all connections with lsof
         lsof_result = subprocess.run(
             ['/usr/sbin/lsof', '-i', '-n', '-P'],
             capture_output=True, text=True, timeout=10
         )
-        
+
         for line in lsof_result.stdout.split('\n')[1:]:  # Skip header
             if not line.strip():
                 continue
             parts = line.split()
             if len(parts) < 9:
                 continue
-                
+
             process = parts[0]
             pid = parts[1]
             user = parts[2]
@@ -163,14 +163,14 @@ def get_detailed_network():
             protocol = parts[7] if len(parts) > 7 else ''  # TCP, UDP
             connection = parts[8] if len(parts) > 8 else ''
             state = parts[9] if len(parts) > 9 else ''
-            
+
             # Parse connection string (e.g., "192.168.1.1:443->10.0.0.1:54321")
             local_addr = ''
             remote_addr = ''
             local_port = ''
             remote_port = ''
             direction = 'unknown'
-            
+
             if '->' in connection:
                 local_part, remote_part = connection.split('->')
                 local_addr, local_port = local_part.rsplit(':', 1) if ':' in local_part else (local_part, '')
@@ -182,7 +182,7 @@ def get_detailed_network():
             elif ':' in connection:
                 local_addr, local_port = connection.rsplit(':', 1)
                 direction = 'inbound' if state == '(LISTEN)' else 'local'
-            
+
             conn_data = {
                 'process': process,
                 'pid': pid,
@@ -193,10 +193,10 @@ def get_detailed_network():
                 'state': state.replace('(', '').replace(')', ''),
                 'direction': direction,
             }
-            
+
             result['connections'].append(conn_data)
             result['stats']['total_connections'] += 1
-            
+
             # Count states
             if 'ESTABLISHED' in state:
                 result['stats']['established'] += 1
@@ -206,11 +206,11 @@ def get_detailed_network():
                 result['stats']['outbound'] += 1
             if direction == 'inbound':
                 result['stats']['inbound'] += 1
-            
+
             # Track protocols
             proto_key = protocol or 'OTHER'
             result['protocols'][proto_key] = result['protocols'].get(proto_key, 0) + 1
-            
+
             # Track remote hosts
             if remote_addr and remote_addr not in ['', '*', 'localhost', '127.0.0.1', '::1']:
                 if remote_addr not in result['remote_hosts']:
@@ -223,7 +223,7 @@ def get_detailed_network():
                 if remote_port:
                     result['remote_hosts'][remote_addr]['ports'].add(remote_port)
                 result['remote_hosts'][remote_addr]['processes'].add(process)
-            
+
             # Check for suspicious activity
             try:
                 port_num = int(remote_port) if remote_port else 0
@@ -235,7 +235,7 @@ def get_detailed_network():
                     })
             except ValueError:
                 pass
-            
+
             for sus_host in suspicious_hosts:
                 if sus_host in remote_addr.lower():
                     result['suspicious'].append({
@@ -243,40 +243,40 @@ def get_detailed_network():
                         'description': f"{process} connecting to {sus_host}",
                         'connection': conn_data
                     })
-    
+
     except Exception as e:
         result['error'] = str(e)
-    
+
     # Convert sets to lists for JSON serialization
     for host_data in result['remote_hosts'].values():
         host_data['ports'] = list(host_data['ports'])
         host_data['processes'] = list(host_data['processes'])
-    
+
     return result
 
 def get_recent_messages(limit=20):
     """Get recent messages from session files."""
     messages = []
-    
+
     pattern = str(SESSIONS_DIR / '**' / '*.jsonl')
-    session_files = sorted(glob.glob(pattern, recursive=True), 
+    session_files = sorted(glob.glob(pattern, recursive=True),
                           key=os.path.getmtime, reverse=True)[:3]
-    
+
     for filepath in session_files:
         events = parse_session_file(filepath, limit=100)
         for event in events:
             if event.get('type') != 'message':
                 continue
-            
+
             msg = event.get('message', {})
             role = msg.get('role', '')
-            
+
             if role not in ['user', 'assistant']:
                 continue
-            
+
             timestamp = event.get('timestamp', msg.get('timestamp', ''))
             content = msg.get('content', '')
-            
+
             # Extract text content
             if isinstance(content, str):
                 text = content[:200] + '...' if len(content) > 200 else content
@@ -288,7 +288,7 @@ def get_recent_messages(limit=20):
                 text = ' '.join(texts)[:200]
             else:
                 text = str(content)[:200]
-            
+
             if text.strip():
                 messages.append({
                     'timestamp': timestamp,
@@ -296,19 +296,19 @@ def get_recent_messages(limit=20):
                     'content': text,
                     'session': os.path.basename(filepath)[:8]
                 })
-    
+
     return sorted(messages, key=lambda x: x.get('timestamp', ''), reverse=True)[:limit]
 
 def get_file_operations(limit=30):
     """Extract file read/write operations from recent tool calls."""
     ops = []
     tool_calls = get_recent_tool_calls(100)
-    
+
     for tc in tool_calls:
         tool = tc.get('tool', '')
         inp = tc.get('input', {})
         ts = tc.get('timestamp', '')
-        
+
         if tool in ['Read', 'read']:
             ops.append({
                 'timestamp': ts,
@@ -367,7 +367,7 @@ def get_file_operations(limit=30):
                 'path': inp.get('action', '')[:40],
                 'details': ''
             })
-    
+
     return ops[:limit]
 
 # Serve React app
@@ -421,16 +421,16 @@ def api_network_detailed():
 @app.route('/api/alerts')
 def api_alerts():
     alerts = security_detector.get_recent_alerts(50)
-    
+
     # Filter by threshold from settings
     settings = get_settings()
     threshold = settings.get('alertThreshold', 'all')
-    
+
     if threshold != 'all':
         severity_levels = {'low': 1, 'medium': 2, 'high': 3, 'critical': 4}
         min_level = severity_levels.get(threshold, 1)
         alerts = [a for a in alerts if severity_levels.get(a.get('severity', 'medium'), 2) >= min_level]
-    
+
     return jsonify(alerts)
 
 @app.route('/api/security-check')
@@ -487,10 +487,10 @@ def api_encryption_setup():
     from flask import request
     data = request.get_json() or {}
     passphrase = data.get('passphrase', '')
-    
+
     if len(passphrase) < 8:
         return jsonify({'success': False, 'error': 'Passphrase must be at least 8 characters'}), 400
-    
+
     encryption = get_encryption()
     if encryption.setup(passphrase):
         # Re-save baseline as encrypted
@@ -505,7 +505,7 @@ def api_encryption_unlock():
     from flask import request
     data = request.get_json() or {}
     passphrase = data.get('passphrase', '')
-    
+
     encryption = get_encryption()
     if encryption.unlock(passphrase):
         # Reload baseline with unlocked encryption
@@ -526,19 +526,19 @@ def api_encryption_disable():
     from flask import request
     data = request.get_json() or {}
     passphrase = data.get('passphrase', '')
-    
+
     encryption = get_encryption()
-    
+
     # Require unlock first to disable
     if encryption.is_enabled() and not encryption.is_unlocked():
         if not encryption.unlock(passphrase):
             return jsonify({'success': False, 'error': 'Invalid passphrase'}), 401
-    
+
     # Re-save baseline as plain before disabling
     baseline = get_baseline()
     encryption.disable()
     baseline._save_baseline()
-    
+
     return jsonify({'success': True})
 
 @app.route('/api/storage-stats')
@@ -548,7 +548,7 @@ def api_storage_stats():
     total_size = 0
     oldest_log = None
     alert_count = 0
-    
+
     # Count session files
     for jsonl in SESSIONS_DIR.rglob('*.jsonl'):
         session_count += 1
@@ -556,11 +556,11 @@ def api_storage_stats():
         mtime = datetime.fromtimestamp(jsonl.stat().st_mtime)
         if oldest_log is None or mtime < oldest_log:
             oldest_log = mtime
-    
+
     # Count alerts
     alerts = security_detector.get_recent_alerts(1000)
     alert_count = len(alerts)
-    
+
     # Format size
     if total_size > 1024 * 1024:
         size_str = f"{total_size / (1024*1024):.1f} MB"
@@ -568,7 +568,7 @@ def api_storage_stats():
         size_str = f"{total_size / 1024:.1f} KB"
     else:
         size_str = f"{total_size} B"
-    
+
     return jsonify({
         'sessionCount': session_count,
         'totalSize': size_str,
@@ -581,13 +581,13 @@ def api_purge():
     """Purge old session logs based on retention settings."""
     settings = get_settings()
     retention_days = settings.get('retentionDays', 30)
-    
+
     if retention_days == 0:
         return jsonify({'success': False, 'error': 'Retention set to forever'})
-    
+
     cutoff = datetime.now() - timedelta(days=retention_days)
     deleted = 0
-    
+
     for jsonl in SESSIONS_DIR.rglob('*.jsonl'):
         try:
             mtime = datetime.fromtimestamp(jsonl.stat().st_mtime)
@@ -596,7 +596,7 @@ def api_purge():
                 deleted += 1
         except:
             pass
-    
+
     return jsonify({'success': True, 'deleted': deleted})
 
 # ============ Trust & Context API ============
@@ -616,10 +616,10 @@ def api_trust_session():
     data = request.get_json()
     session_id = data.get('sessionId', '')
     action = data.get('action', 'trust')  # trust or untrust
-    
+
     if not session_id:
         return jsonify({'error': 'No session ID provided'})
-    
+
     if action == 'trust':
         trust_engine.trust_session(session_id)
         return jsonify({'success': True, 'message': f'Session {session_id[:8]}... is now trusted'})
@@ -636,10 +636,10 @@ def api_trust_evaluate():
         command = data.get('command', '')
         session_id = data.get('sessionId', '')
         session_file = data.get('sessionFile', '')
-        
+
         if not command:
             return jsonify({'error': 'No command provided'}), 400
-        
+
         session_path = Path(session_file) if session_file else None
         result = trust_engine.evaluate_command(command, session_id, session_path)
         return jsonify(result)
@@ -661,7 +661,7 @@ def api_trust_block():
     """Block an IP or domain."""
     from flask import request
     data = request.get_json()
-    
+
     if 'ip' in data:
         trust_engine.block_ip(data['ip'])
         return jsonify({'success': True, 'message': f"Blocked IP: {data['ip']}"})
@@ -670,7 +670,7 @@ def api_trust_block():
         return jsonify({'success': True, 'message': f"Blocked domain: {data['domain']}"})
     elif 'pattern' in data:
         trust_engine.add_threat_pattern(
-            data['pattern'], 
+            data['pattern'],
             data.get('reason', 'Custom rule'),
             data.get('severity', 'high')
         )
@@ -703,10 +703,10 @@ def api_trace():
     from flask import request
     data = request.get_json()
     command = data.get('command', '')
-    
+
     if not command:
         return jsonify({'error': 'No command provided'})
-    
+
     result = security_detector.trace_command(command)
     return jsonify(result)
 
@@ -714,17 +714,17 @@ def api_trace():
 def api_alert_details(alert_id):
     """Get full details for a specific alert."""
     alerts = security_detector.get_recent_alerts(50)
-    
+
     # Alerts are shown reversed in UI
     actual_index = len(alerts) - 1 - alert_id
-    
+
     if 0 <= actual_index < len(alerts):
         alert = alerts[actual_index]
-        
+
         # Try to get more context from session file
         session_file = alert.get('details', {}).get('session_file')
         context_messages = []
-        
+
         if session_file and os.path.exists(session_file):
             try:
                 with open(session_file, 'r') as f:
@@ -749,12 +749,12 @@ def api_alert_details(alert_id):
                             pass
             except:
                 pass
-        
+
         return jsonify({
             'alert': alert,
             'context': context_messages[-20:]  # Last 20 relevant messages
         })
-    
+
     return jsonify({'error': 'Alert not found'})
 
 @app.route('/api/alert-action', methods=['POST'])
@@ -765,56 +765,56 @@ def api_alert_action():
     action = data.get('action')
     alert_id = data.get('alertId')
     session_file = data.get('sessionFile')
-    
+
     try:
         if action == 'dismiss':
             # Mark alert as dismissed
             security_detector.dismiss_alert(alert_id)
             return jsonify({'success': True, 'message': 'Alert dismissed'})
-        
+
         elif action == 'kill':
             # Kill the session - find and terminate the clawdbot process
             if session_file:
                 # Extract session ID from file path
                 session_id = Path(session_file).stem
-                
+
                 # Try to find and kill related processes
                 result = subprocess.run(
                     ['pkill', '-f', f'clawdbot.*{session_id[:8]}'],
                     capture_output=True, timeout=5
                 )
-                
+
                 # Also try killing by gateway
                 subprocess.run(
                     ['pkill', '-f', 'clawdbot gateway'],
                     capture_output=True, timeout=5
                 )
-                
+
                 return jsonify({
-                    'success': True, 
+                    'success': True,
                     'message': f'Attempted to kill session {session_id[:8]}...'
                 })
             return jsonify({'success': False, 'error': 'No session file provided'})
-        
+
         elif action == 'quarantine':
             # Move session to quarantine folder
             if session_file and os.path.exists(session_file):
                 quarantine_dir = CLAWDBOT_DIR / 'quarantine'
                 quarantine_dir.mkdir(exist_ok=True)
-                
+
                 import shutil
                 dest = quarantine_dir / Path(session_file).name
                 shutil.move(session_file, dest)
-                
+
                 return jsonify({
                     'success': True,
                     'message': f'Session quarantined to {dest}'
                 })
             return jsonify({'success': False, 'error': 'Session file not found'})
-        
+
         else:
             return jsonify({'success': False, 'error': f'Unknown action: {action}'})
-    
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -857,12 +857,12 @@ def api_baseline_reset():
 def api_baseline_config():
     """Get or update baseline configuration."""
     baseline = get_baseline()
-    
+
     if request.method == 'POST':
         config = request.get_json() or {}
         baseline.update_config(config)
         return jsonify({'success': True, 'config': baseline.get_config()})
-    
+
     return jsonify(baseline.get_config())
 
 @app.route('/api/baseline/whitelist', methods=['POST'])
@@ -871,10 +871,10 @@ def api_baseline_whitelist():
     data = request.get_json() or {}
     activity_type = data.get('type', 'EXEC')
     details = data.get('details', {})
-    
+
     baseline = get_baseline()
     baseline.mark_as_normal(activity_type, details)
-    
+
     return jsonify({'success': True, 'message': 'Added to whitelist'})
 
 
@@ -894,10 +894,10 @@ def api_threat_intel_analyze():
     """Analyze a command for threat patterns."""
     data = request.get_json() or {}
     command = data.get('command', '')
-    
+
     intel = get_threat_intel()
     matches = intel.analyze_command(command)
-    
+
     return jsonify({
         'command': command,
         'threats': matches,
@@ -911,12 +911,12 @@ def api_threat_intel_analyze():
 def api_notifications_config():
     """Get or update notification configuration."""
     manager = get_notification_manager()
-    
+
     if request.method == 'POST':
         config = request.get_json() or {}
         manager.update_config(config)
         return jsonify({'success': True, 'config': manager.get_config()})
-    
+
     return jsonify(manager.get_config())
 
 @app.route('/api/notifications/test', methods=['POST'])
@@ -950,10 +950,10 @@ def api_kill_session():
     """Kill an agent session."""
     data = request.get_json() or {}
     session_id = data.get('session_id')
-    
+
     if not session_id:
         return jsonify({'success': False, 'error': 'session_id required'}), 400
-    
+
     # Try to kill via gateway client
     # For now, just return success - actual implementation depends on gateway API
     return jsonify({
@@ -968,12 +968,12 @@ def background_monitor():
     last_data = None
     last_tool_ids = set()
     baseline = get_baseline()
-    
+
     while True:
         try:
             tool_calls = get_recent_tool_calls(10)
             connections = get_network_connections()
-            
+
             # Record new tool calls to baseline
             for tc in tool_calls:
                 tc_id = f"{tc.get('timestamp')}_{tc.get('tool')}"
@@ -982,7 +982,7 @@ def background_monitor():
                     # Keep set bounded
                     if len(last_tool_ids) > 1000:
                         last_tool_ids = set(list(last_tool_ids)[-500:])
-                    
+
                     # Record to baseline
                     tool_name = tc.get('tool', '').upper()
                     if tool_name in ('READ', 'WRITE', 'EDIT'):
@@ -997,7 +997,7 @@ def background_monitor():
                         baseline.record_activity('NETWORK', {
                             'remote': tc.get('input', {}).get('url', '')
                         })
-            
+
             data = {
                 'tool_calls': tool_calls,
                 'connections': connections,
@@ -1015,12 +1015,12 @@ def background_security():
     last_alert_count = 0
     threat_intel = get_threat_intel()
     notification_manager = get_notification_manager()
-    
+
     while True:
         try:
             # Run all security checks
             new_alerts = security_detector.run_all_checks()
-            
+
             # Enhanced threat intel analysis on new exec commands
             tool_calls = get_recent_tool_calls(20)
             for tc in tool_calls:
@@ -1044,15 +1044,15 @@ def background_security():
                             )
                             if alert:
                                 new_alerts.append(alert)
-            
+
             current_alerts = security_detector.get_recent_alerts(50)
             alert_count = len(current_alerts)
-            
+
             # Emit status update
             has_alerts = alert_count > 0
             critical_count = sum(1 for a in current_alerts if a.get('severity') == 'critical')
             high_count = sum(1 for a in current_alerts if a.get('severity') == 'high')
-            
+
             socketio.emit('security_status', {
                 'status': 'alert' if has_alerts else 'ok',
                 'alert_count': alert_count,
@@ -1061,31 +1061,31 @@ def background_security():
                 'new_alerts': len(new_alerts),
                 'timestamp': datetime.now().isoformat()
             })
-            
+
             # If new alerts found, emit them and send notifications
             if new_alerts:
                 socketio.emit('new_alerts', [a.to_dict() for a in new_alerts])
-                
+
                 # Send notifications for high/critical alerts
                 for alert in new_alerts:
                     alert_dict = alert.to_dict() if hasattr(alert, 'to_dict') else alert
                     if alert_dict.get('severity') in ('high', 'critical'):
                         notification_manager.send_alert_async(alert_dict)
-            
+
             last_alert_count = alert_count
         except Exception as e:
             print(f"Security check error: {e}")
-        
+
         time.sleep(30)  # Run every 30 seconds
 
 if __name__ == '__main__':
     # Start background threads
     monitor_thread = threading.Thread(target=background_monitor, daemon=True)
     monitor_thread.start()
-    
+
     security_thread = threading.Thread(target=background_security, daemon=True)
     security_thread.start()
-    
+
     # Try to connect to gateway for real-time events
     try:
         gateway_client = get_gateway_client()
@@ -1093,13 +1093,13 @@ if __name__ == '__main__':
         print("🔗 Gateway connection: attempting...")
     except Exception as e:
         print(f"⚠️  Gateway connection skipped: {e}")
-    
+
     host = os.environ.get('MOLTBOT_HOST', '127.0.0.1')
     port = int(os.environ.get('MOLTBOT_PORT', 5050))
-    
+
     print("\n🦀 MoltBot Guardian Security Dashboard")
     print("=" * 40)
     print(f"Open: http://{host}:{port}")
     print("=" * 40 + "\n")
-    
+
     socketio.run(app, host=host, port=port, debug=False, allow_unsafe_werkzeug=True)

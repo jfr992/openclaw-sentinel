@@ -15,12 +15,12 @@ NOTIFICATIONS_CONFIG = Path.home() / '.clawdbot' / 'security' / 'notifications.j
 
 class NotificationManager:
     """Manages alert notifications via webhooks, Slack, etc."""
-    
+
     def __init__(self):
         self.config = self._load_config()
         self._queue: List[Dict] = []
         self._lock = threading.Lock()
-    
+
     def _load_config(self) -> Dict:
         """Load notification config."""
         # First check environment variables
@@ -32,7 +32,7 @@ class NotificationManager:
             'rate_limit_seconds': int(os.environ.get('NOTIFICATION_RATE_LIMIT', '60')),
             'last_sent': None,
         }
-        
+
         # Override with file config if exists
         if NOTIFICATIONS_CONFIG.exists():
             try:
@@ -40,19 +40,19 @@ class NotificationManager:
                 config.update(file_config)
             except:
                 pass
-        
+
         return config
-    
+
     def _save_config(self):
         """Save notification config."""
         NOTIFICATIONS_CONFIG.parent.mkdir(parents=True, exist_ok=True)
         NOTIFICATIONS_CONFIG.write_text(json.dumps(self.config, indent=2, default=str))
-    
+
     def update_config(self, updates: Dict):
         """Update notification configuration."""
         self.config.update(updates)
         self._save_config()
-    
+
     def get_config(self) -> Dict:
         """Get current config (without sensitive URLs)."""
         return {
@@ -62,20 +62,20 @@ class NotificationManager:
             'min_severity': self.config.get('min_severity', 'medium'),
             'rate_limit_seconds': self.config.get('rate_limit_seconds', 60),
         }
-    
+
     def _should_send(self, severity: str) -> bool:
         """Check if alert should be sent based on severity and rate limit."""
         if not self.config.get('enabled'):
             return False
-        
+
         # Check severity threshold
         severity_levels = {'low': 1, 'medium': 2, 'high': 3, 'critical': 4}
         min_level = severity_levels.get(self.config.get('min_severity', 'medium'), 2)
         alert_level = severity_levels.get(severity, 2)
-        
+
         if alert_level < min_level:
             return False
-        
+
         # Check rate limit
         last_sent = self.config.get('last_sent')
         if last_sent:
@@ -86,9 +86,9 @@ class NotificationManager:
                     return False
             except:
                 pass
-        
+
         return True
-    
+
     def _send_webhook(self, url: str, payload: Dict) -> bool:
         """Send generic webhook."""
         try:
@@ -103,13 +103,13 @@ class NotificationManager:
         except Exception as e:
             print(f"[Notifications] Webhook error: {e}")
             return False
-    
+
     def _send_slack(self, alert: Dict) -> bool:
         """Send Slack notification."""
         slack_url = self.config.get('slack_webhook')
         if not slack_url:
             return False
-        
+
         # Format for Slack
         severity_emoji = {
             'low': '🔵',
@@ -117,10 +117,10 @@ class NotificationManager:
             'high': '🟠',
             'critical': '🔴'
         }
-        
+
         severity = alert.get('severity', 'medium')
         emoji = severity_emoji.get(severity, '⚪')
-        
+
         payload = {
             'text': f"{emoji} *Security Alert*: {alert.get('title', 'Unknown')}",
             'blocks': [
@@ -163,67 +163,67 @@ class NotificationManager:
                 }
             ]
         }
-        
+
         return self._send_webhook(slack_url, payload)
-    
+
     def _send_generic_webhook(self, alert: Dict) -> bool:
         """Send to generic webhook URL."""
         webhook_url = self.config.get('webhook_url')
         if not webhook_url:
             return False
-        
+
         payload = {
             'event': 'security_alert',
             'timestamp': datetime.now().isoformat(),
             'alert': alert,
             'source': 'moltbot-security'
         }
-        
+
         return self._send_webhook(webhook_url, payload)
-    
+
     def send_alert(self, alert: Dict):
         """Send alert notification."""
         severity = alert.get('severity', 'medium')
-        
+
         if not self._should_send(severity):
             return
-        
+
         # Send to all configured destinations
         sent = False
-        
+
         if self.config.get('slack_webhook'):
             if self._send_slack(alert):
                 sent = True
-        
+
         if self.config.get('webhook_url'):
             if self._send_generic_webhook(alert):
                 sent = True
-        
+
         if sent:
             self.config['last_sent'] = datetime.now().isoformat()
             self._save_config()
-    
+
     def send_alert_async(self, alert: Dict):
         """Send alert in background thread."""
         thread = threading.Thread(target=self.send_alert, args=(alert,), daemon=True)
         thread.start()
-    
+
     def test_connection(self) -> Dict:
         """Test notification connections."""
         results = {'slack': None, 'webhook': None}
-        
+
         test_alert = {
             'title': 'Test Alert',
             'description': 'This is a test notification from MoltBot Security Dashboard.',
             'severity': 'low',
         }
-        
+
         if self.config.get('slack_webhook'):
             results['slack'] = self._send_slack(test_alert)
-        
+
         if self.config.get('webhook_url'):
             results['webhook'] = self._send_generic_webhook(test_alert)
-        
+
         return results
 
 

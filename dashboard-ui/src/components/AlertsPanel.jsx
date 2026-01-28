@@ -128,7 +128,7 @@ export default function AlertsPanel({ alerts, onRefresh, dimmed, expanded }) {
               {[...alerts].reverse().map((alert, i) => {
                 const config = severityConfig[alert.severity] || severityConfig.medium
                 const Icon = config.icon
-                
+
                 return (
                   <div key={i} className={`${config.border} animate-slide-in`} style={{ animationDelay: `${i * 50}ms` }}>
                     {/* Alert Header */}
@@ -140,31 +140,31 @@ export default function AlertsPanel({ alerts, onRefresh, dimmed, expanded }) {
                       </span>
                       <span className="terminal-timestamp">{formatTime(alert.timestamp)}</span>
                     </div>
-                    
+
                     {/* Command/Path Display */}
                     {(alert.details?.full_command || alert.details?.path || alert.details?.file || alert.details?.port) && (
                       <div className="bg-shell-950 border border-shell-800 rounded p-2 mt-2 font-mono text-xs">
                         <span className="text-threat-500">&gt;</span>
                         <span className="text-neon-cyan ml-2">
-                          {alert.details?.full_command?.slice(0, 100) || 
-                           alert.details?.path || 
+                          {alert.details?.full_command?.slice(0, 100) ||
+                           alert.details?.path ||
                            alert.details?.file ||
                            (alert.details?.port && `Port: ${alert.details.port}`) ||
                            ''}
                         </span>
                       </div>
                     )}
-                    
+
                     {/* Description */}
                     <p className="text-xs text-shell-500 mt-2 line-clamp-1">{alert.description}</p>
-                    
+
                     {/* Matched Pattern */}
                     {alert.details?.matched_text && !alert.details?.full_command && (
                       <code className="block text-xs bg-shell-950 text-threat-400 p-2 rounded mt-2 font-mono border border-threat-500/20">
                         {alert.details.matched_text}
                       </code>
                     )}
-                    
+
                     {/* Actions */}
                     <div className="flex flex-wrap gap-2 mt-3">
                       <button
@@ -173,7 +173,7 @@ export default function AlertsPanel({ alerts, onRefresh, dimmed, expanded }) {
                       >
                         <Eye className="w-3 h-3" /> DETAILS
                       </button>
-                      
+
                       {alert.details?.full_command && (
                         <button
                           onClick={() => handleTrace(alert.details.full_command)}
@@ -182,7 +182,7 @@ export default function AlertsPanel({ alerts, onRefresh, dimmed, expanded }) {
                           <Activity className="w-3 h-3" /> TRACE
                         </button>
                       )}
-                      
+
                       {alert.details?.session_file && (
                         <button
                           onClick={() => handleAction('kill', i, alert.details.session_file)}
@@ -191,14 +191,14 @@ export default function AlertsPanel({ alerts, onRefresh, dimmed, expanded }) {
                           KILL SESSION
                         </button>
                       )}
-                      
+
                       <button
                         onClick={() => handleAction('whitelist', i, alert)}
                         className="text-xs px-2.5 py-1.5 rounded-md bg-status-safe/10 text-status-safe border border-status-safe/30 hover:bg-status-safe/20 transition-colors font-mono"
                       >
                         SAFE
                       </button>
-                      
+
                       <button
                         onClick={() => handleAction('dismiss', i, '')}
                         className="text-xs px-2.5 py-1.5 rounded-md bg-shell-700 text-shell-500 border border-shell-600 hover:bg-shell-600 transition-colors font-mono"

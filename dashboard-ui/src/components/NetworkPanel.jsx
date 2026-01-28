@@ -25,27 +25,27 @@ const KNOWN_SERVICES = {
 
 function categorizeConnection(conn) {
   const text = `${conn.process} ${conn.remote || ''} ${conn.local || ''}`.toLowerCase()
-  
+
   for (const [key, service] of Object.entries(KNOWN_SERVICES)) {
     if (text.includes(key)) {
       return { ...service, type: 'known' }
     }
   }
-  
+
   const systemProcesses = ['identitys', 'rapportd', 'sharingd', 'bluetoothd', 'airportd', 'configd', 'mDNSResponder']
   if (systemProcesses.some(p => conn.process?.toLowerCase().includes(p))) {
     return { name: 'macOS System', icon: '🍎', safe: true, type: 'local' }
   }
-  
-  if (conn.remote === '-' || !conn.remote || 
-      conn.remote.includes('127.0.0.1') || 
+
+  if (conn.remote === '-' || !conn.remote ||
+      conn.remote.includes('127.0.0.1') ||
       conn.remote.includes('::1') ||
       conn.remote.includes('localhost') ||
       conn.remote.includes('fe80:') ||
       conn.state === 'LISTEN') {
     return { name: 'Local Service', icon: '🏠', safe: true, type: 'local' }
   }
-  
+
   return { name: 'Unknown', icon: '❓', safe: false, type: 'unknown' }
 }
 
@@ -71,10 +71,10 @@ export default function NetworkPanel({ connections, expanded }) {
 
   function summarizeConnections(conns) {
     const summary = { known: {}, local: {}, unknown: [] }
-    
+
     for (const conn of (conns || [])) {
       const category = categorizeConnection(conn)
-      
+
       if (category.type === 'local') {
         const processName = conn.process || 'Unknown'
         if (!summary.local[processName]) {
@@ -92,12 +92,12 @@ export default function NetworkPanel({ connections, expanded }) {
         summary.unknown.push(conn)
       }
     }
-    
+
     for (const proc of Object.values(summary.local)) {
       proc.ports = [...proc.ports].slice(0, 5)
       proc.states = [...proc.states]
     }
-    
+
     return summary
   }
 
@@ -107,7 +107,7 @@ export default function NetworkPanel({ connections, expanded }) {
 
   const summary = summarizeConnections(connections)
   const hasUnknown = summary.unknown.length > 0
-  
+
   return (
     <div className="card card-network overflow-hidden">
       <div className="px-5 py-4 border-b border-shell-700 flex items-center justify-between">
@@ -123,7 +123,7 @@ export default function NetworkPanel({ connections, expanded }) {
           )}
         </div>
       </div>
-      
+
       <div className="p-4 h-64 overflow-y-auto">
         {/* Known services */}
         {Object.values(summary.known).length > 0 && (
@@ -140,7 +140,7 @@ export default function NetworkPanel({ connections, expanded }) {
             </div>
           </div>
         )}
-        
+
         {/* Local services */}
         {Object.keys(summary.local).length > 0 && (
           <div className="mb-4">
@@ -163,7 +163,7 @@ export default function NetworkPanel({ connections, expanded }) {
             </div>
           </div>
         )}
-        
+
         {/* Unknown connections */}
         {summary.unknown.length > 0 && (
           <div>
@@ -180,7 +180,7 @@ export default function NetworkPanel({ connections, expanded }) {
             </div>
           </div>
         )}
-        
+
         {/* Empty state */}
         {Object.keys(summary.known).length === 0 && Object.keys(summary.local).length === 0 && summary.unknown.length === 0 && (
           <div className="text-center text-shell-500 py-8 font-mono">
@@ -214,7 +214,7 @@ function DetailedNetworkView({ data, loading, onRefresh }) {
   }
 
   const summary = { known: {}, local: {}, unknown: [] }
-  
+
   for (const conn of (data.connections || [])) {
     const category = categorizeConnection(conn)
     if (category.type === 'local') {
@@ -235,7 +235,7 @@ function DetailedNetworkView({ data, loading, onRefresh }) {
       summary.unknown.push(conn)
     }
   }
-  
+
   for (const proc of Object.values(summary.local)) {
     proc.ports = [...proc.ports].slice(0, 5)
     proc.states = [...proc.states]
@@ -283,8 +283,8 @@ function DetailedNetworkView({ data, loading, onRefresh }) {
           <div className="space-y-6">
             {/* Status summary */}
             <div className={`p-4 rounded-lg border ${
-              summary.unknown.length > 0 
-                ? 'bg-status-warn/10 border-status-warn/30' 
+              summary.unknown.length > 0
+                ? 'bg-status-warn/10 border-status-warn/30'
                 : 'bg-status-safe/10 border-status-safe/30 glow-green'
             }`}>
               <div className="flex items-center gap-2 mb-2">
@@ -303,8 +303,8 @@ function DetailedNetworkView({ data, loading, onRefresh }) {
                 )}
               </div>
               <p className="text-sm text-shell-500 font-mono">
-                {data.stats?.total_connections || 0} total • 
-                {Object.keys(summary.known).length} services • 
+                {data.stats?.total_connections || 0} total •
+                {Object.keys(summary.known).length} services •
                 {Object.keys(summary.local).length} local
               </p>
             </div>
@@ -382,7 +382,7 @@ function DetailedNetworkView({ data, loading, onRefresh }) {
                 <div className="col-span-4">Remote</div>
                 <div className="col-span-2">State</div>
               </div>
-              
+
               <div className="max-h-[400px] overflow-y-auto">
                 {filteredConnections.length === 0 ? (
                   <div className="text-shell-500 text-sm text-center py-8 font-mono">No connections match filter</div>
@@ -390,8 +390,8 @@ function DetailedNetworkView({ data, loading, onRefresh }) {
                   filteredConnections.map((conn, i) => {
                     const category = categorizeConnection(conn)
                     return (
-                      <div 
-                        key={i} 
+                      <div
+                        key={i}
                         className={`table-row grid grid-cols-12 gap-2 px-4 py-2 text-xs ${
                           category.type === 'unknown' ? 'bg-status-warn/5' : ''
                         }`}

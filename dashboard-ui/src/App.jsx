@@ -21,12 +21,12 @@ function getViewFromHash() {
 export default function App() {
   const [activeView, setActiveView] = useState(getViewFromHash)
   const [isLoaded, setIsLoaded] = useState(false)
-  
+
   // Fade in on mount
   useEffect(() => {
     setTimeout(() => setIsLoaded(true), 100)
   }, [])
-  
+
   // Sync hash with view state
   useEffect(() => {
     // Update hash when view changes
@@ -36,7 +36,7 @@ export default function App() {
       window.location.hash = newHash
     }
   }, [activeView])
-  
+
   // Listen for browser back/forward
   useEffect(() => {
     const handleHashChange = () => setActiveView(getViewFromHash())
@@ -53,9 +53,9 @@ export default function App() {
 
   return (
     <div className={`min-h-screen grid-bg scanlines transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
-      <Sidebar 
-        activeView={activeView} 
-        onViewChange={setActiveView} 
+      <Sidebar
+        activeView={activeView}
+        onViewChange={setActiveView}
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
@@ -145,9 +145,9 @@ export default function App() {
 
 // Compact file operations panel for normal view
 function FileOpsPanel({ operations }) {
-  const fileOps = operations?.filter(op => 
-    op.operation?.includes('READ') || 
-    op.operation?.includes('WRITE') || 
+  const fileOps = operations?.filter(op =>
+    op.operation?.includes('READ') ||
+    op.operation?.includes('WRITE') ||
     op.operation?.includes('EDIT')
   ) || []
 
