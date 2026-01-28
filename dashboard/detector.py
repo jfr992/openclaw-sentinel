@@ -38,21 +38,40 @@ class Alert:
 class SecurityDetector:
     # Whitelist known safe destinations
     SAFE_HOSTS = [
+        # AI providers
         'anthropic.com', 'api.anthropic.com',
-        'telegram.org', 'api.telegram.org',
-        'google.com', 'googleapis.com', 'Google:',
-        'apple.com', 'icloud.com',
-        'github.com', 'githubusercontent.com',
-        'cloudflare.com',
+        'openai.com', 'api.openai.com',
         '2001:67c:4e8:',  # Anthropic IPv6
+        # Messaging
+        'telegram.org', 'api.telegram.org',
+        'signal.org', 'whatsapp.com', 'web.whatsapp.com',
+        'discord.com', 'discordapp.com', 'discord.gg',
+        'slack.com', 'slack-edge.com',
+        # Cloud/CDN providers
+        'google.com', 'googleapis.com', 'Google:', 'gstatic.com',
         '2607:f8b0:',     # Google IPv6
+        'apple.com', 'icloud.com', 'mzstatic.com',
+        'microsoft.com', 'windows.net', 'azure.com',
+        'amazon.com', 'amazonaws.com', 'cloudfront.net',
+        'cloudflare.com', 'cloudflare-dns.com',
+        '162.159.',       # Cloudflare
+        '104.16.', '104.17.', '104.18.', '104.19.', '104.20.', '104.21.', '104.22.', '104.23.', '104.24.', '104.25.', '104.26.', '104.27.',  # Cloudflare
+        '172.64.', '172.65.', '172.66.', '172.67.',  # Cloudflare
+        'akamai.net', 'akamaiedge.net',
+        'fastly.net', '151.101.',       # Fastly CDN
+        # Development
+        'github.com', 'githubusercontent.com', 'githubassets.com',
+        '140.82.112.', '140.82.113.', '140.82.114.', '192.30.255.',  # GitHub
+        'gitlab.com', 'bitbucket.org',
+        'npmjs.org', 'npmjs.com', 'registry.npmjs.org',
+        'pypi.org', 'pythonhosted.org',
+        # Local/System
         'fe80:',          # Local link IPv6 (internal)
         'identitys:',     # macOS identity service
-        '140.82.112.',    # GitHub
-        '140.82.113.',    # GitHub
-        '140.82.114.',    # GitHub
-        '151.101.',       # Fastly CDN (GitHub, etc)
-        '192.30.255.',    # GitHub
+        '10.0.0.', '192.168.', '172.16.', '172.17.', '172.18.', '172.19.', '172.20.', '172.21.', '172.22.', '172.23.', '172.24.', '172.25.', '172.26.', '172.27.', '172.28.', '172.29.', '172.30.', '172.31.',  # Private networks
+        # Browsers/Analytics
+        'mozilla.org', 'firefox.com',
+        'brave.com', 'bravesoftware.com',
     ]
 
     # Ignore these in "failed login" checks (false positives)
@@ -160,19 +179,24 @@ class SecurityDetector:
                             ))
 
         # Check for new connections (not in known list)
+        # Only alert if baseline is learned (to avoid spammy startup alerts)
+        baseline = self.baseline_file.exists()
         known = set(self.state.get('known_connections', []))
         new_connections = current - known
 
         for conn in new_connections:
             # Skip local connections
-            if any(x in conn.lower() for x in ['127.0.0.1', 'localhost', '::1']):
+            if any(x in conn.lower() for x in ['127.0.0.1', 'localhost', '::1', '0.0.0.0']):
                 continue
             # Skip whitelisted hosts
             if any(safe in conn for safe in self.SAFE_HOSTS):
                 continue
+            # Only alert after baseline is learned (reduces startup noise)
+            if not baseline:
+                continue
             # New external connection to unknown host
             alerts.append(Alert(
-                severity=MEDIUM,
+                severity=LOW,  # Reduced from MEDIUM - new connections are usually fine
                 category="network",
                 title="New network connection",
                 description=f"First time seeing: {conn}",

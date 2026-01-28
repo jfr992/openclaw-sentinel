@@ -768,9 +768,13 @@ def api_alert_action():
 
     try:
         if action == 'dismiss':
-            # Mark alert as dismissed
-            security_detector.dismiss_alert(alert_id)
-            return jsonify({'success': True, 'message': 'Alert dismissed'})
+            # Mark alert as dismissed - ensure alert_id is int
+            try:
+                alert_index = int(alert_id) if alert_id is not None else 0
+            except (ValueError, TypeError):
+                alert_index = 0
+            security_detector.dismiss_alert(alert_index)
+            return jsonify({'success': True, 'message': 'Alert dismissed', 'dismissed_index': alert_index})
 
         elif action == 'kill':
             # Kill the session - find and terminate the clawdbot process
@@ -1078,73 +1082,6 @@ def background_security():
 
         time.sleep(30)  # Run every 30 seconds
 
-if __name__ == '__main__':
-    # Start background threads
-    monitor_thread = threading.Thread(target=background_monitor, daemon=True)
-    monitor_thread.start()
-
-    security_thread = threading.Thread(target=background_security, daemon=True)
-    security_thread.start()
-
-    # Try to connect to gateway for real-time events
-    try:
-        gateway_client = get_gateway_client()
-
-        # Register callbacks to process real-time events
-        def on_tool_call(data):
-            """Handle incoming tool calls from gateway."""
-            print(f"[Gateway] Tool call: {data.get('tool', 'unknown')}")
-            # Emit to dashboard UI
-            socketio.emit('tool_call', data)
-            # Run security analysis on exec commands
-            if data.get('tool') == 'exec':
-                command = data.get('args', {}).get('command', '')
-                intel = get_threat_intel()
-                threats = intel.analyze_command(command)
-                if threats:
-                    alert = {
-                        'title': f"🚨 Suspicious command detected",
-                        'severity': 'high',
-                        'description': f"Gateway detected: {command[:100]}",
-                        'timestamp': datetime.now().isoformat(),
-                        'category': 'gateway_threat_intel',
-                        'details': {
-                            'command': command,
-                            'threats': threats,
-                            'source': 'gateway_realtime'
-                        }
-                    }
-                    SECURITY_STATE['alerts'].insert(0, alert)
-                    socketio.emit('security_alert', alert)
-
-        def on_message(data):
-            """Handle incoming messages from gateway."""
-            socketio.emit('agent_message', data)
-
-        def on_session(data):
-            """Handle session events from gateway."""
-            socketio.emit('session_event', data)
-
-        gateway_client.on('tool_call', on_tool_call)
-        gateway_client.on('message', on_message)
-        gateway_client.on('session', on_session)
-
-        gateway_client.start_background()
-        print("🔗 Gateway connection: attempting...")
-    except Exception as e:
-        print(f"⚠️  Gateway connection skipped: {e}")
-
-    host = os.environ.get('MOLTBOT_HOST', '127.0.0.1')
-    port = int(os.environ.get('MOLTBOT_PORT', 5050))
-
-    print("\n🦀 MoltBot Guardian Security Dashboard")
-    print("=" * 40)
-    print(f"Open: http://{host}:{port}")
-    print("=" * 40 + "\n")
-
-    socketio.run(app, host=host, port=port, debug=False, allow_unsafe_werkzeug=True)
-
-
 # --- Usage/Cost Tracking API ---
 
 @app.route('/api/usage')
@@ -1234,3 +1171,71 @@ def api_usage():
         usage['by_day'][day]['cost'] = round(usage['by_day'][day]['cost'], 4)
 
     return jsonify(usage)
+
+if __name__ == '__main__':
+    # Start background threads
+    monitor_thread = threading.Thread(target=background_monitor, daemon=True)
+    monitor_thread.start()
+
+    security_thread = threading.Thread(target=background_security, daemon=True)
+    security_thread.start()
+
+    # Try to connect to gateway for real-time events
+    try:
+        gateway_client = get_gateway_client()
+
+        # Register callbacks to process real-time events
+        def on_tool_call(data):
+            """Handle incoming tool calls from gateway."""
+            print(f"[Gateway] Tool call: {data.get('tool', 'unknown')}")
+            # Emit to dashboard UI
+            socketio.emit('tool_call', data)
+            # Run security analysis on exec commands
+            if data.get('tool') == 'exec':
+                command = data.get('args', {}).get('command', '')
+                intel = get_threat_intel()
+                threats = intel.analyze_command(command)
+                if threats:
+                    alert = {
+                        'title': f"🚨 Suspicious command detected",
+                        'severity': 'high',
+                        'description': f"Gateway detected: {command[:100]}",
+                        'timestamp': datetime.now().isoformat(),
+                        'category': 'gateway_threat_intel',
+                        'details': {
+                            'command': command,
+                            'threats': threats,
+                            'source': 'gateway_realtime'
+                        }
+                    }
+                    SECURITY_STATE['alerts'].insert(0, alert)
+                    socketio.emit('security_alert', alert)
+
+        def on_message(data):
+            """Handle incoming messages from gateway."""
+            socketio.emit('agent_message', data)
+
+        def on_session(data):
+            """Handle session events from gateway."""
+            socketio.emit('session_event', data)
+
+        gateway_client.on('tool_call', on_tool_call)
+        gateway_client.on('message', on_message)
+        gateway_client.on('session', on_session)
+
+        gateway_client.start_background()
+        print("🔗 Gateway connection: attempting...")
+    except Exception as e:
+        print(f"⚠️  Gateway connection skipped: {e}")
+
+    host = os.environ.get('MOLTBOT_HOST', '127.0.0.1')
+    port = int(os.environ.get('MOLTBOT_PORT', 5050))
+
+    print("\n🦀 MoltBot Guardian Security Dashboard")
+    print("=" * 40)
+    print(f"Open: http://{host}:{port}")
+    print("=" * 40 + "\n")
+
+    socketio.run(app, host=host, port=port, debug=False, allow_unsafe_werkzeug=True)
+
+
