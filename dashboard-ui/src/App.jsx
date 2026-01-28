@@ -163,33 +163,66 @@ export default function App() {
 
 // Compact file operations panel for normal view
 function FileOpsPanel({ operations }) {
-  const fileOps = operations?.filter(op =>
-    op.operation?.includes('READ') ||
-    op.operation?.includes('WRITE') ||
-    op.operation?.includes('EDIT')
-  ) || []
+  const allOps = operations || []
+
+  // Count by operation type
+  const counts = {
+    READ: allOps.filter(op => op.operation?.includes('READ')).length,
+    WRITE: allOps.filter(op => op.operation?.includes('WRITE')).length,
+    EDIT: allOps.filter(op => op.operation?.includes('EDIT')).length,
+    EXEC: allOps.filter(op => op.operation?.includes('EXEC')).length,
+    OTHER: allOps.filter(op =>
+      !op.operation?.includes('READ') &&
+      !op.operation?.includes('WRITE') &&
+      !op.operation?.includes('EDIT') &&
+      !op.operation?.includes('EXEC')
+    ).length,
+  }
+
+  const opColors = {
+    READ: { text: 'text-neon-blue', label: '📖' },
+    WRITE: { text: 'text-neon-purple', label: '✏️' },
+    EDIT: { text: 'text-neon-pink', label: '🔧' },
+    EXEC: { text: 'text-neon-cyan', label: '⚡' },
+    OTHER: { text: 'text-shell-400', label: '📦' },
+  }
 
   return (
     <div className="card card-activity overflow-hidden">
       <div className="px-5 py-4 border-b border-shell-700 flex items-center justify-between">
         <h2 className="font-display font-semibold text-white text-sm uppercase tracking-wide">File Operations</h2>
-        <span className="badge badge-info">{fileOps.length} ops</span>
+        <span className="badge badge-info">{allOps.length} total</span>
       </div>
-      <div className="p-4 h-64 overflow-y-auto">
-        {fileOps.length === 0 ? (
+
+      {/* Counters row */}
+      <div className="px-4 py-3 border-b border-shell-800 flex flex-wrap gap-3">
+        {Object.entries(counts).map(([type, count]) => {
+          if (count === 0) return null
+          const { text, label } = opColors[type]
+          return (
+            <div key={type} className="flex items-center gap-1.5 text-xs">
+              <span>{label}</span>
+              <span className={`font-mono font-bold ${text}`}>{count}</span>
+              <span className="text-shell-500">{type}</span>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="p-4 h-48 overflow-y-auto">
+        {allOps.length === 0 ? (
           <div className="text-shell-500 text-sm text-center py-8 font-mono">
-            No file operations
-            <p className="text-xs text-shell-600 mt-1">
-              {operations?.length ? `(${operations.length} total ops)` : 'Waiting for data...'}
-            </p>
+            No operations yet
           </div>
         ) : (
-          fileOps.slice(0, 15).map((op, i) => (
+          allOps.slice(0, 12).map((op, i) => (
             <div key={i} className="py-2 border-b border-shell-800 last:border-0">
               <div className="flex items-center gap-2 text-xs">
                 <span className={`font-mono font-semibold ${
                   op.operation?.includes('WRITE') ? 'text-neon-purple' :
-                  op.operation?.includes('EDIT') ? 'text-neon-pink' : 'text-neon-blue'
+                  op.operation?.includes('EDIT') ? 'text-neon-pink' :
+                  op.operation?.includes('EXEC') ? 'text-neon-cyan' :
+                  op.operation?.includes('READ') ? 'text-neon-blue' : 'text-shell-400'
                 }`}>
                   {op.operation?.replace(/^[^\w]*/, '').split(/\s/)[0] || 'OP'}
                 </span>
@@ -210,6 +243,27 @@ function FileOpsPanel({ operations }) {
 function ExpandedFileOps({ operations }) {
   const allOps = operations || []
 
+  // Operation type definitions with colors and labels
+  const opTypes = [
+    { key: 'READ', label: '📖 Read', bg: 'bg-neon-blue/10', border: 'border-neon-blue/30', text: 'text-neon-blue', desc: 'File reads' },
+    { key: 'WRITE', label: '✏️ Write', bg: 'bg-neon-purple/10', border: 'border-neon-purple/30', text: 'text-neon-purple', desc: 'File creates' },
+    { key: 'EDIT', label: '🔧 Edit', bg: 'bg-neon-pink/10', border: 'border-neon-pink/30', text: 'text-neon-pink', desc: 'File edits' },
+    { key: 'EXEC', label: '⚡ Exec', bg: 'bg-neon-cyan/10', border: 'border-neon-cyan/30', text: 'text-neon-cyan', desc: 'Commands' },
+    { key: 'SEARCH', label: '🔍 Search', bg: 'bg-neon-green/10', border: 'border-neon-green/30', text: 'text-neon-green', desc: 'Web searches' },
+    { key: 'FETCH', label: '🌐 Fetch', bg: 'bg-neon-orange/10', border: 'border-neon-orange/30', text: 'text-neon-orange', desc: 'URL fetches' },
+    { key: 'MESSAGE', label: '💬 Message', bg: 'bg-status-warn/10', border: 'border-status-warn/30', text: 'text-status-warn', desc: 'Messages sent' },
+    { key: 'BROWSER', label: '🖥️ Browser', bg: 'bg-shell-700', border: 'border-shell-600', text: 'text-shell-300', desc: 'Browser actions' },
+  ]
+
+  // Calculate counts
+  const counts = {}
+  opTypes.forEach(t => {
+    counts[t.key] = allOps.filter(op => op.operation?.includes(t.key)).length
+  })
+
+  // Filter to only show types with counts > 0
+  const activeTypes = opTypes.filter(t => counts[t.key] > 0)
+
   return (
     <>
       <div className="px-5 py-4 border-b border-shell-700 flex items-center justify-between">
@@ -217,24 +271,18 @@ function ExpandedFileOps({ operations }) {
         <span className="badge badge-info">{allOps.length} total</span>
       </div>
       <div className="p-6">
-        {/* Stats row */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          {['READ', 'WRITE', 'EDIT', 'EXEC'].map(type => {
-            const count = allOps.filter(op => op.operation?.includes(type)).length
-            const colors = {
-              READ: { bg: 'bg-neon-blue/10', border: 'border-neon-blue/30', text: 'text-neon-blue' },
-              WRITE: { bg: 'bg-neon-purple/10', border: 'border-neon-purple/30', text: 'text-neon-purple' },
-              EDIT: { bg: 'bg-neon-pink/10', border: 'border-neon-pink/30', text: 'text-neon-pink' },
-              EXEC: { bg: 'bg-neon-cyan/10', border: 'border-neon-cyan/30', text: 'text-neon-cyan' },
-            }
-            const c = colors[type]
-            return (
-              <div key={type} className={`rounded-lg p-4 border ${c.bg} ${c.border}`}>
-                <div className={`metric-value ${c.text}`}>{count}</div>
-                <div className="metric-label mt-1">{type}</div>
+        {/* Stats row - dynamic grid based on active types */}
+        <div className={`grid gap-4 mb-6 ${activeTypes.length <= 4 ? 'grid-cols-4' : 'grid-cols-4 lg:grid-cols-8'}`}>
+          {activeTypes.map(t => (
+            <div key={t.key} className={`rounded-lg p-4 border ${t.bg} ${t.border} hover:scale-105 transition-transform`}>
+              <div className={`metric-value ${t.text}`}>{counts[t.key]}</div>
+              <div className="metric-label mt-1 flex items-center gap-1">
+                <span>{t.label.split(' ')[0]}</span>
+                <span className="hidden sm:inline">{t.label.split(' ')[1]}</span>
               </div>
-            )
-          })}
+              <div className="text-[10px] text-shell-500 mt-1 hidden lg:block">{t.desc}</div>
+            </div>
+          ))}
         </div>
 
         {/* Full list */}
