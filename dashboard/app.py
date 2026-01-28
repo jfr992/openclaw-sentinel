@@ -542,10 +542,10 @@ def api_health():
 @app.route('/api/activity')
 def api_activity():
     return jsonify({
-        'tool_calls': get_recent_tool_calls(30),
+        'tool_calls': get_recent_tool_calls(50),
         'connections': get_network_connections(),
-        'messages': get_recent_messages(15),
-        'file_ops': get_file_operations(25),
+        'messages': get_recent_messages(20),
+        'file_ops': get_file_operations(100),
         'updated': datetime.now().isoformat()
     })
 
