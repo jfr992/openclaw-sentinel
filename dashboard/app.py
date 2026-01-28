@@ -25,9 +25,14 @@ from crypto import get_encryption
 from threat_intel import get_threat_intel
 from notifications import get_notification_manager
 from gateway_client import get_gateway_client
+from telemetry import (
+    instrument_flask, record_alert, record_tool_call,
+    record_tokens, record_cost, record_connections, traced
+)
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+instrument_flask(app)  # OTEL instrumentation
 security_detector = SecurityDetector()
 trust_engine = get_trust_engine()
 app.config['SECRET_KEY'] = 'clawdbot-security-dashboard'

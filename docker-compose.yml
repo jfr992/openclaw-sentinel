@@ -3,15 +3,76 @@ version: '3.8'
 services:
   security-dashboard:
     build: .
-    network_mode: host
+    ports:
+      - "5050:5050"
     volumes:
       - ~/.clawdbot:/data:ro
       - security-data:/app/data
     environment:
-      - MOLTBOT_HOST=127.0.0.1
+      - MOLTBOT_HOST=0.0.0.0
       - MOLTBOT_PORT=5050
       - CLAWDBOT_DIR=/data
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=moltbot-guardian
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+    depends_on:
+      - otel-collector
+    restart: unless-stopped
+
+  # ============ OBSERVABILITY STACK ============
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8888:8888"   # Prometheus metrics (collector)
+      - "8889:8889"   # Prometheus exporter
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14250:14250"  # gRPC
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./otel/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=moltbot
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./otel/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - jaeger
     restart: unless-stopped
 
 volumes:
   security-data:
+  prometheus-data:
+  grafana-data:

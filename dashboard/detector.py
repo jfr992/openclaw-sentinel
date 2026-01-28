@@ -16,6 +16,7 @@ import re
 
 from baseline import get_baseline
 from smart_alerts import get_smart_filter
+from telemetry import record_alert
 
 # Alert severity levels
 CRITICAL = "critical"
@@ -142,6 +143,8 @@ class SecurityDetector:
         # Keep last 500 alerts
         alerts = alerts[-500:]
         self.alerts_file.write_text(json.dumps(alerts, indent=2))
+        # Record metric for OTEL
+        record_alert(alert.severity, alert.category)
 
     def check_new_network_connections(self) -> List[Alert]:
         """Detect new outbound connections to unknown IPs."""
