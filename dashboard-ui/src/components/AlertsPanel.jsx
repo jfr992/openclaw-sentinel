@@ -99,18 +99,35 @@ export default function AlertsPanel({ alerts, onRefresh, dimmed, expanded }) {
               <span className="badge badge-critical">{alerts.length}</span>
             )}
           </div>
-          <button
-            onClick={handleScan}
-            disabled={scanning}
-            className="btn-secondary text-xs disabled:opacity-50"
-          >
-            {scanning ? (
-              <>
-                <span className="animate-spin inline-block w-3 h-3 border border-threat-400 border-t-transparent rounded-full mr-2" />
-                Scanning...
-              </>
-            ) : 'Run Scan'}
-          </button>
+          <div className="flex items-center gap-2">
+            {alerts.length > 0 && (
+              <button
+                onClick={async () => {
+                  try {
+                    await fetch('/api/alerts/clear', { method: 'POST' })
+                    onRefresh()
+                  } catch (e) {
+                    console.error('Failed to clear alerts:', e)
+                  }
+                }}
+                className="btn-secondary text-xs text-threat-400 border-threat-500/30 hover:bg-threat-500/10"
+              >
+                Dismiss All
+              </button>
+            )}
+            <button
+              onClick={handleScan}
+              disabled={scanning}
+              className="btn-secondary text-xs disabled:opacity-50"
+            >
+              {scanning ? (
+                <>
+                  <span className="animate-spin inline-block w-3 h-3 border border-threat-400 border-t-transparent rounded-full mr-2" />
+                  Scanning...
+                </>
+              ) : 'Run Scan'}
+            </button>
+          </div>
         </div>
 
         {/* Alerts List */}
