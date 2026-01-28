@@ -112,29 +112,116 @@ def find_lsof():
             return path
     return None
 
+def get_proc_net_connections():
+    """Get network connections from /proc/net (Linux fallback for Docker)."""
+    connections = []
+    proc_files = ['/proc/net/tcp', '/proc/net/tcp6', '/proc/net/udp', '/proc/net/udp6']
+
+    # State mapping for TCP
+    tcp_states = {
+        '01': 'ESTABLISHED', '02': 'SYN_SENT', '03': 'SYN_RECV',
+        '04': 'FIN_WAIT1', '05': 'FIN_WAIT2', '06': 'TIME_WAIT',
+        '07': 'CLOSE', '08': 'CLOSE_WAIT', '09': 'LAST_ACK',
+        '0A': 'LISTEN', '0B': 'CLOSING'
+    }
+
+    def hex_to_ip(hex_ip, is_v6=False):
+        """Convert hex IP to readable format."""
+        if is_v6:
+            # IPv6 - simplified representation
+            return 'IPv6'
+        try:
+            ip_int = int(hex_ip, 16)
+            return f"{ip_int & 0xFF}.{(ip_int >> 8) & 0xFF}.{(ip_int >> 16) & 0xFF}.{(ip_int >> 24) & 0xFF}"
+        except:
+            return hex_ip
+
+    def hex_to_port(hex_port):
+        """Convert hex port to int."""
+        try:
+            return int(hex_port, 16)
+        except:
+            return 0
+
+    for proc_file in proc_files:
+        if not os.path.exists(proc_file):
+            continue
+
+        is_v6 = '6' in proc_file
+        is_udp = 'udp' in proc_file
+
+        try:
+            with open(proc_file, 'r') as f:
+                lines = f.readlines()[1:]  # Skip header
+
+            for line in lines:
+                parts = line.split()
+                if len(parts) < 10:
+                    continue
+
+                local_addr = parts[1]
+                remote_addr = parts[2]
+                state = parts[3] if not is_udp else 'UDP'
+
+                local_ip, local_port = local_addr.split(':')
+                remote_ip, remote_port = remote_addr.split(':')
+
+                local_ip = hex_to_ip(local_ip, is_v6)
+                local_port = hex_to_port(local_port)
+                remote_ip = hex_to_ip(remote_ip, is_v6)
+                remote_port = hex_to_port(remote_port)
+
+                state_str = tcp_states.get(state, state) if not is_udp else 'UDP'
+
+                # Determine direction
+                if remote_ip == '0.0.0.0' or remote_port == 0:  # nosec B104
+                    direction = 'listening'
+                else:
+                    direction = 'outbound'
+
+                connections.append({
+                    'process': 'container',
+                    'pid': '-',
+                    'user': '-',
+                    'protocol': 'UDP' if is_udp else ('TCPv6' if is_v6 else 'TCP'),
+                    'local': f"{local_ip}:{local_port}",
+                    'remote': f"{remote_ip}:{remote_port}" if remote_port else '-',
+                    'state': state_str,
+                    'direction': direction,
+                })
+        except Exception as e:
+            print(f"Error reading {proc_file}: {e}")
+
+    return connections
+
 def get_network_connections():
     """Get current network connections from node/clawdbot processes."""
     connections = []
     lsof = find_lsof()
-    if not lsof:
-        return connections  # lsof not available (e.g., in Docker)
-    try:
-        result = subprocess.run(
-            [lsof, '-i', '-n', '-P'],
-            capture_output=True, text=True, timeout=5
-        )
-        for line in result.stdout.split('\n'):
-            if 'node' in line.lower():
-                parts = line.split()
-                if len(parts) >= 9:
-                    connections.append({
-                        'process': parts[0],
-                        'pid': parts[1],
-                        'type': parts[4] if len(parts) > 4 else '',
-                        'connection': parts[8] if len(parts) > 8 else ''
-                    })
-    except Exception as e:
-        print(f"Error getting connections: {e}")
+
+    if lsof:
+        # Use lsof (macOS/Linux with lsof installed)
+        try:
+            result = subprocess.run(
+                [lsof, '-i', '-n', '-P'],
+                capture_output=True, text=True, timeout=5
+            )
+            for line in result.stdout.split('\n'):
+                if 'node' in line.lower():
+                    parts = line.split()
+                    if len(parts) >= 9:
+                        connections.append({
+                            'process': parts[0],
+                            'pid': parts[1],
+                            'type': parts[4] if len(parts) > 4 else '',
+                            'connection': parts[8] if len(parts) > 8 else ''
+                        })
+        except Exception as e:
+            print(f"Error getting connections with lsof: {e}")
+    else:
+        # Fallback to /proc/net for Docker/Linux containers
+        connections = get_proc_net_connections()
+
     return connections
 
 def get_detailed_network():
@@ -156,7 +243,33 @@ def get_detailed_network():
     # Check if lsof is available
     lsof = find_lsof()
     if not lsof:
-        return result  # lsof not available (e.g., in Docker)
+        # Use /proc/net fallback for Docker/Linux
+        proc_connections = get_proc_net_connections()
+        for conn in proc_connections:
+            result['connections'].append(conn)
+            result['stats']['total_connections'] += 1
+
+            if conn.get('state') == 'ESTABLISHED':
+                result['stats']['established'] += 1
+            if conn.get('state') == 'LISTEN':
+                result['stats']['listening'] += 1
+            if conn.get('direction') == 'outbound':
+                result['stats']['outbound'] += 1
+            if conn.get('direction') == 'inbound':
+                result['stats']['inbound'] += 1
+
+            # Track protocols
+            proto = conn.get('protocol', 'OTHER')
+            result['protocols'][proto] = result['protocols'].get(proto, 0) + 1
+
+            # Track remote hosts
+            remote = conn.get('remote', '').split(':')[0]
+            if remote and remote not in ['', '-', '0.0.0.0', '127.0.0.1', '::1']:  # nosec B104
+                if remote not in result['remote_hosts']:
+                    result['remote_hosts'][remote] = {'count': 0, 'ports': [], 'processes': []}
+                result['remote_hosts'][remote]['count'] += 1
+
+        return result
 
     # Known suspicious ports/hosts
     suspicious_ports = {22: 'SSH', 23: 'Telnet', 3389: 'RDP', 4444: 'Metasploit', 5555: 'ADB'}

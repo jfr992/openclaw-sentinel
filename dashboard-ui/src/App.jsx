@@ -45,7 +45,7 @@ export default function App() {
   }, [])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
-  const { data, loading, error } = useActivity(5000)
+  const { data, loading, error, connectionMode, gatewayConnected } = useActivity(5000)
   const { alerts, refresh: refreshAlerts } = useAlerts(30000)
 
   // Zoom mode - when a section is selected, it expands
@@ -123,6 +123,23 @@ export default function App() {
 
         {/* Status indicators */}
         <div className="fixed bottom-4 right-4 flex items-center gap-2 z-20">
+          {/* Connection Mode Indicator */}
+          {connectionMode === 'live' && (
+            <div className="text-xs font-mono text-neon-cyan bg-neon-cyan/10 px-3 py-1.5 rounded-lg border border-neon-cyan/30 flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-cyan opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-neon-cyan" />
+              </span>
+              LIVE STREAM
+            </div>
+          )}
+          {connectionMode === 'polling' && !error && (
+            <div className="text-xs font-mono text-status-warn bg-status-warn/10 px-3 py-1.5 rounded-lg border border-status-warn/30 flex items-center gap-2"
+                 title="Gateway not connected - using polling fallback. Data refreshes every 5 seconds.">
+              <span className="inline-block w-2 h-2 rounded-full bg-status-warn animate-pulse" />
+              POLLING MODE
+            </div>
+          )}
           {loading && (
             <div className="text-xs font-mono text-shell-500 bg-shell-900 px-3 py-1.5 rounded-lg border border-shell-700">
               <span className="animate-spin inline-block w-3 h-3 border border-neon-cyan border-t-transparent rounded-full mr-2" />

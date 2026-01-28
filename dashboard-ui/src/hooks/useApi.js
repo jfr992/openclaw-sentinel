@@ -6,7 +6,10 @@ export function useActivity(refreshInterval = 5000) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [liveEvents, setLiveEvents] = useState([])
+  const [connectionMode, setConnectionMode] = useState('connecting') // 'live', 'polling', 'connecting', 'error'
+  const [gatewayConnected, setGatewayConnected] = useState(false)
   const socketRef = useRef(null)
+  const lastLiveEventRef = useRef(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -14,8 +17,17 @@ export function useActivity(refreshInterval = 5000) {
       const json = await res.json()
       setData(json)
       setError(null)
+
+      // If we haven't received live events in 30s, we're in polling mode
+      const now = Date.now()
+      if (lastLiveEventRef.current && (now - lastLiveEventRef.current) < 30000) {
+        setConnectionMode('live')
+      } else if (!error) {
+        setConnectionMode('polling')
+      }
     } catch (e) {
       setError(e.message)
+      setConnectionMode('error')
     } finally {
       setLoading(false)
     }
@@ -29,8 +41,17 @@ export function useActivity(refreshInterval = 5000) {
     const socket = io(window.location.origin)
     socketRef.current = socket
 
+    socket.on('connect', () => {
+      setConnectionMode('polling') // Start as polling until we get gateway events
+    })
+
+    socket.on('disconnect', () => {
+      setConnectionMode('error')
+    })
+
     socket.on('tool_call', (event) => {
-      console.log('[LIVE] tool_call:', event)
+      lastLiveEventRef.current = Date.now()
+      setConnectionMode('live')
       setLiveEvents(prev => [event, ...prev].slice(0, 50))
       // Merge into data
       setData(prev => prev ? {
@@ -40,8 +61,19 @@ export function useActivity(refreshInterval = 5000) {
     })
 
     socket.on('activity_update', (newData) => {
-      console.log('[LIVE] activity_update')
       setData(newData)
+    })
+
+    socket.on('gateway_status', (status) => {
+      setGatewayConnected(status.connected)
+      if (status.connected) {
+        setConnectionMode('live')
+      }
+    })
+
+    socket.on('agent_lifecycle', () => {
+      lastLiveEventRef.current = Date.now()
+      setConnectionMode('live')
     })
 
     return () => {
@@ -50,7 +82,7 @@ export function useActivity(refreshInterval = 5000) {
     }
   }, [refresh, refreshInterval])
 
-  return { data, loading, error, refresh, liveEvents }
+  return { data, loading, error, refresh, liveEvents, connectionMode, gatewayConnected }
 }
 
 export function useAlerts(refreshInterval = 30000) {
@@ -77,12 +109,10 @@ export function useAlerts(refreshInterval = 30000) {
     const socket = io(window.location.origin)
 
     socket.on('security_alert', (alert) => {
-      console.log('[LIVE] security_alert:', alert)
       setAlerts(prev => [alert, ...prev])
     })
 
     socket.on('new_alerts', (newAlerts) => {
-      console.log('[LIVE] new_alerts:', newAlerts.length)
       setAlerts(prev => [...newAlerts, ...prev])
     })
 
