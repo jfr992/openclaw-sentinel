@@ -1102,4 +1102,4 @@ if __name__ == '__main__':
     print(f"Open: http://{host}:{port}")
     print("=" * 40 + "\n")
     
-    socketio.run(app, host=host, port=port, debug=False)
+    socketio.run(app, host=host, port=port, debug=False, allow_unsafe_werkzeug=True)
