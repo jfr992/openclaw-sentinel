@@ -186,7 +186,7 @@ class SecurityDetector:
 
         for conn in new_connections:
             # Skip local connections
-            if any(x in conn.lower() for x in ['127.0.0.1', 'localhost', '::1', '0.0.0.0']):
+            if any(x in conn.lower() for x in ['127.0.0.1', 'localhost', '::1', '0.0.0.0']):  # nosec B104
                 continue
             # Skip whitelisted hosts
             if any(safe in conn for safe in self.SAFE_HOSTS):
