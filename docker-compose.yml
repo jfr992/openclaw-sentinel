@@ -3,13 +3,12 @@ version: '3.8'
 services:
   security-dashboard:
     build: .
-    ports:
-      - "5050:5050"
+    network_mode: host
     volumes:
       - ~/.clawdbot:/data:ro
       - security-data:/app/data
     environment:
-      - MOLTBOT_HOST=0.0.0.0
+      - MOLTBOT_HOST=127.0.0.1
       - MOLTBOT_PORT=5050
       - CLAWDBOT_DIR=/data
     restart: unless-stopped

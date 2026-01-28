@@ -12,7 +12,7 @@ COPY dashboard/ ./dashboard/
 COPY dashboard-ui/dist/ ./dashboard/static/
 
 # Environment
-ENV MOLTBOT_HOST=0.0.0.0
+ENV MOLTBOT_HOST=127.0.0.1
 ENV MOLTBOT_PORT=5050
 ENV CLAWDBOT_DIR=/data
 
