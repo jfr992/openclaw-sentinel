@@ -26,13 +26,13 @@ repos:
   # =============================================================================
 
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.9.0
+    rev: 1.8.3
     hooks:
       - id: bandit
         name: "🐍 Bandit - Python security linter"
-        # -l = LOW severity min, -i = LOW confidence min (catches everything)
-        # Removed double flags (-ll, -ii) which may behave differently
-        args: ["-r", "-l", "-i", "-x", "*/test_*,*/venv/*"]
+        # -l = severity LOW+, -i = confidence LOW+ (catches all including B104)
+        # Exclude only test directories and venv, not test files
+        args: ["-l", "-i", "-x", "*/tests/*,*/venv/*,*/.venv/*"]
         files: ^dashboard/.*\.py$
 
   # Safety check as local hook (pyupio/safety repo doesn't have pre-commit hooks)
