@@ -8,7 +8,11 @@ import fs from 'fs'
 import path from 'path'
 import { glob } from 'glob'
 import os from 'os'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 import performanceRoutes from './server/src/interfaces/http/routes/performance.js'
+
+const execAsync = promisify(exec)
 
 const app = express()
 const PORT = 5055
@@ -229,6 +233,73 @@ app.get('/api/sessions', async (req, res) => {
 // API: Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
+})
+
+// API: OpenClaw Memory Status (calls CLI)
+app.get('/api/memory', async (req, res) => {
+  try {
+    // Use Gemini key, unset OpenAI to force Gemini provider
+    const env = {
+      ...process.env,
+      GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+      OPENAI_API_KEY: '' // Force Gemini
+    }
+    
+    const { stdout } = await execAsync('openclaw memory status --json 2>/dev/null', {
+      env,
+      timeout: 15000
+    })
+    
+    // Extract JSON from output (skip doctor warnings with box chars)
+    const jsonStart = stdout.indexOf('[')
+    const jsonEnd = stdout.lastIndexOf(']') + 1
+    if (jsonStart === -1 || jsonEnd === 0) {
+      throw new Error('No JSON in output')
+    }
+    const jsonStr = stdout.slice(jsonStart, jsonEnd)
+    const data = JSON.parse(jsonStr)
+    
+    // Transform to simpler format for dashboard
+    const agents = data.map(agent => ({
+      id: agent.agentId,
+      files: agent.status?.files || 0,
+      chunks: agent.status?.chunks || 0,
+      provider: agent.status?.provider || 'unknown',
+      model: agent.status?.model || 'unknown',
+      dirty: agent.status?.dirty || false,
+      cache: agent.status?.cache || {},
+      vector: {
+        enabled: agent.status?.vector?.enabled || false,
+        available: agent.status?.vector?.available || false,
+        dims: agent.status?.vector?.dims || 0
+      },
+      fts: {
+        enabled: agent.status?.fts?.enabled || false,
+        available: agent.status?.fts?.available || false
+      },
+      batch: agent.status?.batch || {},
+      sources: agent.status?.sourceCounts || [],
+      issues: agent.scan?.issues || []
+    }))
+    
+    // Aggregate stats
+    const totals = {
+      agents: agents.length,
+      files: agents.reduce((sum, a) => sum + a.files, 0),
+      chunks: agents.reduce((sum, a) => sum + a.chunks, 0),
+      cacheEntries: agents.reduce((sum, a) => sum + (a.cache?.entries || 0), 0),
+      vectorReady: agents.every(a => a.vector.available),
+      ftsReady: agents.every(a => a.fts.available)
+    }
+    
+    res.json({ agents, totals, timestamp: new Date().toISOString() })
+  } catch (err) {
+    console.error('Memory API error:', err.message)
+    res.status(500).json({ 
+      error: err.message,
+      hint: 'Is openclaw CLI installed and in PATH?'
+    })
+  }
 })
 
 async function startServer() {

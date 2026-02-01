@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Brain, Zap, Search, Database, Clock, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Brain, Zap, Search, Database, Clock, RefreshCw, AlertCircle, CheckCircle2, Layers, FileText } from 'lucide-react'
 
-const MEMORY_API = 'http://localhost:5057'
-
-function StatCard({ title, value, subtitle, icon: Icon, color = 'orange', trend }) {
+function StatCard({ title, value, subtitle, icon: Icon, color = 'orange' }) {
   const colors = {
     orange: 'text-[var(--accent-orange)]',
     green: 'text-[var(--accent-green)]',
@@ -21,79 +19,108 @@ function StatCard({ title, value, subtitle, icon: Icon, color = 'orange', trend 
       </div>
       <div className="flex items-baseline gap-2">
         <span className={`text-2xl font-bold ${colors[color]}`}>{value}</span>
-        {trend && (
-          <span className={`text-xs ${trend > 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {trend > 0 ? '↑' : '↓'} {Math.abs(trend)}%
-          </span>
-        )}
       </div>
       {subtitle && <p className="text-xs text-[var(--text-muted)] mt-1">{subtitle}</p>}
     </div>
   )
 }
 
-function SourceBreakdown({ title, data }) {
-  if (!data || Object.keys(data).length === 0) {
-    return (
-      <div className="card p-4">
-        <h4 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">{title}</h4>
-        <p className="text-xs text-[var(--text-muted)]">No data yet</p>
-      </div>
-    )
-  }
-
-  const entries = Object.entries(data).sort((a, b) => {
-    const aVal = typeof a[1] === 'object' ? a[1].tokens || a[1].count || 0 : a[1]
-    const bVal = typeof b[1] === 'object' ? b[1].tokens || b[1].count || 0 : b[1]
-    return bVal - aVal
-  })
-
+function AgentCard({ agent }) {
+  const hasIssues = agent.issues?.length > 0
+  
   return (
-    <div className="card p-4">
-      <h4 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">{title}</h4>
-      <div className="space-y-2 max-h-48 overflow-y-auto">
-        {entries.map(([source, value]) => {
-          const displayValue = typeof value === 'object' 
-            ? `${value.chunks || 0} chunks, ${value.tokens || 0} tokens`
-            : `${value} chunks`
-          
-          return (
-            <div key={source} className="flex justify-between items-center text-xs">
-              <span className="text-[var(--text-muted)] truncate max-w-[60%]" title={source}>
-                {source.replace('memory/', '').replace('.md', '')}
-              </span>
-              <span className="text-[var(--accent-cyan)]">{displayValue}</span>
-            </div>
-          )
-        })}
+    <div className={`card p-4 ${hasIssues ? 'border-yellow-500/30' : ''}`}>
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="font-semibold text-[var(--accent-cyan)]">{agent.id}</h4>
+        <div className="flex items-center gap-2">
+          {agent.vector.available && (
+            <span className="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-400">
+              Vector
+            </span>
+          )}
+          {agent.fts.available && (
+            <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400">
+              FTS
+            </span>
+          )}
+        </div>
       </div>
+      
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="flex justify-between">
+          <span className="text-[var(--text-muted)]">Files</span>
+          <span className="text-[var(--accent-orange)]">{agent.files}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-[var(--text-muted)]">Chunks</span>
+          <span className="text-[var(--accent-orange)]">{agent.chunks}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-[var(--text-muted)]">Provider</span>
+          <span className="text-[var(--accent-green)]">{agent.provider}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-[var(--text-muted)]">Cache</span>
+          <span className="text-[var(--accent-cyan)]">{agent.cache?.entries || 0} entries</span>
+        </div>
+        {agent.vector.dims > 0 && (
+          <div className="flex justify-between col-span-2">
+            <span className="text-[var(--text-muted)]">Dimensions</span>
+            <span className="text-[var(--accent-purple)]">{agent.vector.dims}</span>
+          </div>
+        )}
+      </div>
+      
+      {agent.dirty && (
+        <div className="mt-2 text-xs text-yellow-400 flex items-center gap-1">
+          <AlertCircle className="w-3 h-3" />
+          Needs reindexing
+        </div>
+      )}
+      
+      {hasIssues && (
+        <div className="mt-2 text-xs text-yellow-400">
+          {agent.issues.map((issue, i) => (
+            <div key={i} className="flex items-start gap-1">
+              <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+              <span>{issue}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {agent.sources?.length > 0 && (
+        <div className="mt-3 pt-2 border-t border-[var(--border)]">
+          <span className="text-xs text-[var(--text-muted)]">Sources:</span>
+          <div className="mt-1 space-y-1">
+            {agent.sources.map((src, i) => (
+              <div key={i} className="flex justify-between text-xs">
+                <span className="text-[var(--text-secondary)]">{src.source}</span>
+                <span className="text-[var(--accent-cyan)]">{src.files} files, {src.chunks} chunks</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 export function MemoryDashboard() {
-  const [metrics, setMetrics] = useState(null)
-  const [health, setHealth] = useState(null)
+  const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const fetchMetrics = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const [metricsRes, healthRes] = await Promise.all([
-        fetch(`${MEMORY_API}/metrics`).catch(() => null),
-        fetch(`${MEMORY_API}/health`).catch(() => null)
-      ])
-
-      if (metricsRes?.ok) {
-        setMetrics(await metricsRes.json())
-        setError(null)
-      } else {
-        setError('Cannot connect to cangrejo-memory (port 5057)')
+      const res = await fetch('/api/memory')
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || `HTTP ${res.status}`)
       }
-
-      if (healthRes?.ok) {
-        setHealth(await healthRes.json())
-      }
+      const data = await res.json()
+      setData(data)
+      setError(null)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -102,17 +129,17 @@ export function MemoryDashboard() {
   }, [])
 
   useEffect(() => {
-    fetchMetrics()
-    const interval = setInterval(fetchMetrics, 15000)
+    fetchData()
+    const interval = setInterval(fetchData, 30000)
     return () => clearInterval(interval)
-  }, [fetchMetrics])
+  }, [fetchData])
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <Brain className="w-12 h-12 text-[var(--accent-purple)] animate-pulse mx-auto mb-4" />
-          <p className="text-[var(--text-muted)]">Loading memory metrics...</p>
+          <p className="text-[var(--text-muted)]">Loading OpenClaw memory status...</p>
         </div>
       </div>
     )
@@ -124,15 +151,12 @@ export function MemoryDashboard() {
         <div className="flex items-center gap-3">
           <AlertCircle className="w-6 h-6 text-[var(--accent-red)]" />
           <div>
-            <h3 className="font-semibold text-[var(--accent-red)]">Memory Service Unavailable</h3>
+            <h3 className="font-semibold text-[var(--accent-red)]">Failed to get memory status</h3>
             <p className="text-sm text-[var(--text-muted)] mt-1">{error}</p>
-            <p className="text-xs text-[var(--text-muted)] mt-2">
-              Start with: <code className="bg-[var(--bg-secondary)] px-1 rounded">cd ~/clawd/cangrejo-memory && npm start</code>
-            </p>
           </div>
         </div>
         <button 
-          onClick={fetchMetrics}
+          onClick={fetchData}
           className="mt-4 flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-secondary)] rounded text-sm hover:bg-[var(--border)] transition-colors"
         >
           <RefreshCw className="w-3 h-3" />
@@ -142,7 +166,8 @@ export function MemoryDashboard() {
     )
   }
 
-  const { embeddings, queries, chunks, system } = metrics || {}
+  const { agents, totals, timestamp } = data || {}
+  const mainAgent = agents?.find(a => a.id === 'main')
 
   return (
     <div className="space-y-6">
@@ -151,26 +176,26 @@ export function MemoryDashboard() {
         <div className="flex items-center gap-3">
           <Brain className="w-6 h-6 text-[var(--accent-purple)]" />
           <div>
-            <h2 className="text-lg font-semibold">Vector Memory</h2>
+            <h2 className="text-lg font-semibold">OpenClaw Memory</h2>
             <p className="text-xs text-[var(--text-muted)]">
-              cangrejo-memory • {health?.embedding?.provider || 'ollama'} ({health?.embedding?.model || 'nomic-embed-text'})
+              Built-in vector search • {mainAgent?.provider || 'auto'} ({mainAgent?.model || 'detecting...'})
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {health?.status === 'healthy' ? (
+          {totals?.vectorReady && totals?.ftsReady ? (
             <span className="flex items-center gap-1.5 text-xs text-[var(--accent-green)]">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              Healthy
+              Ready
             </span>
           ) : (
-            <span className="flex items-center gap-1.5 text-xs text-[var(--accent-red)]">
+            <span className="flex items-center gap-1.5 text-xs text-yellow-400">
               <AlertCircle className="w-3.5 h-3.5" />
               Degraded
             </span>
           )}
           <button
-            onClick={fetchMetrics}
+            onClick={fetchData}
             className="p-1.5 rounded bg-[var(--bg-secondary)] hover:bg-[var(--border)] transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -181,119 +206,81 @@ export function MemoryDashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Embeddings"
-          value={embeddings?.total || 0}
-          subtitle={`${embeddings?.successRate || 'N/A'} success rate`}
-          icon={Zap}
-          color="orange"
-        />
-        <StatCard
-          title="Queries"
-          value={queries?.total || 0}
-          subtitle={`${queries?.avgLatencyMs || 0}ms avg latency`}
-          icon={Search}
-          color="cyan"
-        />
-        <StatCard
-          title="Chunks Indexed"
-          value={chunks?.total || 0}
-          subtitle={`${chunks?.avgSize || 0} avg chars`}
-          icon={Database}
+          title="Agents"
+          value={totals?.agents || 0}
+          subtitle="Configured memory stores"
+          icon={Layers}
           color="purple"
         />
         <StatCard
-          title="Uptime"
-          value={system?.uptimeHuman || 'N/A'}
-          subtitle={system?.lastActivity ? `Last: ${new Date(system.lastActivity).toLocaleTimeString()}` : 'No activity'}
-          icon={Clock}
+          title="Files Indexed"
+          value={totals?.files || 0}
+          subtitle="Across all agents"
+          icon={FileText}
+          color="orange"
+        />
+        <StatCard
+          title="Chunks"
+          value={totals?.chunks || 0}
+          subtitle="Vector embeddings stored"
+          icon={Database}
+          color="cyan"
+        />
+        <StatCard
+          title="Cache Entries"
+          value={totals?.cacheEntries || 0}
+          subtitle="Embedding cache hits"
+          icon={Zap}
           color="green"
         />
       </div>
 
-      {/* Performance Metrics */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="card p-4">
-          <h4 className="text-sm font-semibold text-[var(--text-secondary)] mb-3 flex items-center gap-2">
-            <Zap className="w-4 h-4 text-[var(--accent-orange)]" />
-            Embedding Performance
-          </h4>
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs">
-              <span className="text-[var(--text-muted)]">Avg Latency</span>
-              <span className="text-[var(--accent-orange)]">{embeddings?.avgLatencyMs || 0}ms</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-[var(--text-muted)]">P95 Latency</span>
-              <span className="text-[var(--accent-orange)]">{embeddings?.p95LatencyMs || 0}ms</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-[var(--text-muted)]">Tokens Used</span>
-              <span className="text-[var(--accent-orange)]">{(embeddings?.tokensUsed || 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-[var(--text-muted)]">Failed</span>
-              <span className={embeddings?.failed > 0 ? 'text-[var(--accent-red)]' : 'text-[var(--text-muted)]'}>
-                {embeddings?.failed || 0}
-              </span>
-            </div>
+      {/* Capabilities */}
+      <div className="card p-4">
+        <h4 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">Search Capabilities</h4>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="flex items-center gap-2">
+            {totals?.vectorReady ? (
+              <CheckCircle2 className="w-4 h-4 text-[var(--accent-green)]" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-[var(--accent-red)]" />
+            )}
+            <span className="text-sm">Vector Search (sqlite-vec)</span>
           </div>
-        </div>
-
-        <div className="card p-4">
-          <h4 className="text-sm font-semibold text-[var(--text-secondary)] mb-3 flex items-center gap-2">
-            <Search className="w-4 h-4 text-[var(--accent-cyan)]" />
-            Query Performance
-          </h4>
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs">
-              <span className="text-[var(--text-muted)]">Avg Latency</span>
-              <span className="text-[var(--accent-cyan)]">{queries?.avgLatencyMs || 0}ms</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-[var(--text-muted)]">P95 Latency</span>
-              <span className="text-[var(--accent-cyan)]">{queries?.p95LatencyMs || 0}ms</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-[var(--text-muted)]">Cache Hit Rate</span>
-              <span className="text-[var(--accent-cyan)]">{queries?.cacheHitRate || '0%'}</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-[var(--text-muted)]">Avg Results</span>
-              <span className="text-[var(--accent-cyan)]">{queries?.avgResultCount || '0'}</span>
-            </div>
+          <div className="flex items-center gap-2">
+            {totals?.ftsReady ? (
+              <CheckCircle2 className="w-4 h-4 text-[var(--accent-green)]" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-[var(--accent-red)]" />
+            )}
+            <span className="text-sm">Full-Text Search (FTS5)</span>
           </div>
-        </div>
-
-        <div className="card p-4">
-          <h4 className="text-sm font-semibold text-[var(--text-secondary)] mb-3 flex items-center gap-2">
-            <Database className="w-4 h-4 text-[var(--accent-purple)]" />
-            Collection Info
-          </h4>
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs">
-              <span className="text-[var(--text-muted)]">Total Chunks</span>
-              <span className="text-[var(--accent-purple)]">{chunks?.total || 0}</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-[var(--text-muted)]">Avg Chunk Size</span>
-              <span className="text-[var(--accent-purple)]">{chunks?.avgSize || 0} chars</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-[var(--text-muted)]">Sources</span>
-              <span className="text-[var(--accent-purple)]">{Object.keys(chunks?.bySource || {}).length}</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-[var(--text-muted)]">Dimensions</span>
-              <span className="text-[var(--accent-purple)]">{health?.embedding?.dimensions || 768}</span>
-            </div>
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-[var(--accent-green)]" />
+            <span className="text-sm">Hybrid Ranking</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-[var(--accent-green)]" />
+            <span className="text-sm">Embedding Cache</span>
           </div>
         </div>
       </div>
 
-      {/* Source Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <SourceBreakdown title="Embeddings by Source" data={embeddings?.bySource} />
-        <SourceBreakdown title="Chunks by Source" data={chunks?.bySource} />
+      {/* Agent Cards */}
+      <div>
+        <h4 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">Memory Stores by Agent</h4>
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          {agents?.map(agent => (
+            <AgentCard key={agent.id} agent={agent} />
+          ))}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="text-xs text-[var(--text-muted)] text-center">
+        Last updated: {timestamp ? new Date(timestamp).toLocaleTimeString() : 'N/A'}
+        {' • '}
+        <code className="bg-[var(--bg-secondary)] px-1 rounded">openclaw memory status</code>
       </div>
     </div>
   )
