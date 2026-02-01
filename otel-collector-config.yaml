@@ -1,0 +1,73 @@
+# OpenTelemetry Collector Configuration for Clawdbot Metrics
+#
+# This collector receives metrics/traces from Clawdbot and exports
+# to Prometheus/Grafana for visualization in Guardian dashboards.
+#
+# Clawdbot publishes: traces, metrics, logs (tokens, costs, tool calls, etc.)
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 10s
+    send_batch_size: 1024
+
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+    spike_limit_mib: 128
+
+  attributes:
+    actions:
+      - key: service.instance.id
+        action: upsert
+        from_attribute: host.name
+
+exporters:
+  # Console output for debugging
+  debug:
+    verbosity: detailed
+
+  # Prometheus metrics endpoint
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: moltbot
+    const_labels:
+      service: guardian
+
+  # Jaeger for traces (optional)
+  # jaeger:
+  #   endpoint: jaeger:14250
+  #   tls:
+  #     insecure: true
+
+  # OTLP to Grafana Cloud / other backends (optional)
+  # otlphttp:
+  #   endpoint: https://otlp-gateway.grafana.net/otlp
+  #   headers:
+  #     Authorization: "Basic <base64-encoded-credentials>"
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus, debug]
+
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, attributes]
+      exporters: [debug]
+      # Add jaeger or otlphttp for production
+
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      address: 0.0.0.0:8888

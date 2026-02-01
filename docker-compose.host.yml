@@ -1,0 +1,26 @@
+# MoltBot Guardian - Docker Compose (Host Network Mode)
+# Use this for full network visibility (sees all host connections)
+# Usage: docker compose -f docker-compose.host.yml up -d
+
+services:
+  guardian:
+    build: .
+    image: moltbot-guardian:latest
+    container_name: moltbot-guardian
+    network_mode: host
+    volumes:
+      - ~/.clawdbot:/data:ro
+      - guardian-data:/home/moltbot
+    environment:
+      MOLTBOT_HOST: "127.0.0.1"  # Localhost only - critical for host network mode!
+      MOLTBOT_PORT: "5050"
+      CLAWDBOT_DIR: "/data"
+    restart: unless-stopped
+    # For full lsof visibility, need SYS_PTRACE capability
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  guardian-data:

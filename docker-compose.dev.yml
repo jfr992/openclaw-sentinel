@@ -1,0 +1,20 @@
+# MoltBot Guardian - Development (builds from source)
+# Usage: docker compose -f docker-compose.dev.yml up --build
+
+services:
+  guardian:
+    build: .
+    container_name: moltbot-guardian-dev
+    ports:
+      - "127.0.0.1:5050:5050"  # Localhost only
+    volumes:
+      - ~/.clawdbot:/data:ro
+      - guardian-data:/home/moltbot
+    environment:
+      MOLTBOT_HOST: "0.0.0.0"  # Required for Docker networking
+      MOLTBOT_PORT: "5050"
+      CLAWDBOT_DIR: "/data"
+    restart: unless-stopped
+
+volumes:
+  guardian-data:
