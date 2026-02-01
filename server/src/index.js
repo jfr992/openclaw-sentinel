@@ -15,7 +15,7 @@ import { aggregateUsage } from './domain/services/UsageCalculator.js'
 import { scoreToolCall, RISK_LEVELS } from './domain/services/RiskScorer.js'
 
 const app = express()
-const PORT = process.env.PORT || 5055
+const PORT = process.env.PORT || 5056
 
 // Config
 const openclawDir = process.env.OPENCLAW_DIR || path.join(os.homedir(), '.openclaw')

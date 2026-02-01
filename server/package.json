@@ -13,10 +13,10 @@
   "dependencies": {
     "express": "^5.0.0",
     "glob": "^11.0.0",
-    "ws": "^8.18.0"
+    "ws": "^8.19.0"
   },
   "devDependencies": {
-    "vitest": "^3.0.0",
-    "@vitest/coverage-v8": "^3.0.0"
+    "@vitest/coverage-v8": "^3.0.0",
+    "vitest": "^3.0.0"
   }
 }
