@@ -27,7 +27,34 @@ export function parseToolCalls(message) {
   
   if (!message) return calls;
   
-  // Handle structured tool_calls array
+  // Handle OpenClaw format: content array with type: "toolCall"
+  if (Array.isArray(message.content)) {
+    for (const item of message.content) {
+      if (item.type === 'toolCall' && item.name) {
+        calls.push({
+          tool: item.name,
+          success: true, // Assume success, toolResult will update
+          error: null,
+          id: item.id
+        });
+      }
+      // Check for tool errors in toolResult
+      if (item.type === 'toolResult' || item.type === 'tool_result') {
+        const hasError = item.error || 
+          (typeof item.content === 'string' && /error|failed|denied|ENOENT/i.test(item.content));
+        if (hasError && item.toolCallId) {
+          calls.push({
+            tool: item.name || 'unknown',
+            success: false,
+            error: typeof item.content === 'string' ? item.content.slice(0, 100) : 'Error',
+            id: item.toolCallId
+          });
+        }
+      }
+    }
+  }
+  
+  // Handle structured tool_calls array (fallback for other formats)
   if (Array.isArray(message.tool_calls)) {
     for (const call of message.tool_calls) {
       calls.push({
@@ -39,7 +66,7 @@ export function parseToolCalls(message) {
     }
   }
   
-  // Handle tool_results in content
+  // Handle tool_results in content string
   if (message.content && typeof message.content === 'string') {
     // Detect error patterns in tool output
     const errorPatterns = [

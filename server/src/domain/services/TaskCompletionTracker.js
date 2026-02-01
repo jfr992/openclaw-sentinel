@@ -164,8 +164,24 @@ export function detectSatisfaction(text) {
 }
 
 /**
+ * Extract text content from message (handles string or array format)
+ * @param {string|Array} content - Message content
+ * @returns {string}
+ */
+function extractText(content) {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter(item => item.type === 'text' && item.text)
+      .map(item => item.text)
+      .join('\n');
+  }
+  return '';
+}
+
+/**
  * Calculate task completion metrics from conversation
- * @param {Array<{role: string, content: string}>} messages - Conversation messages
+ * @param {Array<{role: string, content: string|Array}>} messages - Conversation messages
  * @returns {object} Task completion metrics
  */
 export function calculateTaskMetrics(messages) {
@@ -185,7 +201,7 @@ export function calculateTaskMetrics(messages) {
 
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
-    const content = msg.content || '';
+    const content = extractText(msg.content);
 
     if (msg.role === 'user') {
       const taskDetection = detectTaskRequest(content);
