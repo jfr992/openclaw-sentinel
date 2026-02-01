@@ -51,6 +51,34 @@ app.locals.getSessionData = getSessionData
 // Mount performance routes
 app.use('/api/performance', performanceRoutes)
 
+// Jaeger API proxy (for traces tab)
+const JAEGER_URL = process.env.JAEGER_URL || 'http://localhost:16686'
+
+app.get('/api/traces', async (req, res) => {
+  try {
+    const { service = 'cangrejo-memory', limit = 20 } = req.query
+    const url = `${JAEGER_URL}/api/traces?service=${service}&limit=${limit}`
+    const response = await fetch(url)
+    if (!response.ok) throw new Error(`Jaeger returned ${response.status}`)
+    const data = await response.json()
+    res.json(data)
+  } catch (err) {
+    console.error('Jaeger proxy error:', err.message)
+    res.status(502).json({ error: err.message, hint: 'Is Jaeger running on port 16686?' })
+  }
+})
+
+app.get('/api/traces/services', async (req, res) => {
+  try {
+    const response = await fetch(`${JAEGER_URL}/api/services`)
+    if (!response.ok) throw new Error(`Jaeger returned ${response.status}`)
+    const data = await response.json()
+    res.json(data)
+  } catch (err) {
+    res.status(502).json({ error: err.message })
+  }
+})
+
 // API: Get usage stats from session files
 app.get('/api/usage', async (req, res) => {
   try {

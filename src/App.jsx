@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Activity, Zap, Database, DollarSign, AlertTriangle, Clock, Cpu, RefreshCw, Shield, BarChart3, Brain } from 'lucide-react'
+import { Activity, Zap, Database, DollarSign, AlertTriangle, Clock, Cpu, RefreshCw, Shield, BarChart3, Brain, Radio } from 'lucide-react'
 import TokenChart from './components/TokenChart'
 import CacheChart from './components/CacheChart'
 import CostChart from './components/CostChart'
@@ -9,6 +9,7 @@ import SessionInfo from './components/SessionInfo'
 import SecurityDashboard from './features/security/SecurityDashboard'
 import InsightsDashboard from './features/insights/InsightsDashboard'
 import { PerformanceDashboard } from './features/performance'
+import { TracesPanel } from './features/traces'
 
 function App() {
   const [activeTab, setActiveTab] = useState('usage')
@@ -77,6 +78,7 @@ function App() {
   const tabs = [
     { id: 'usage', label: 'Usage', icon: BarChart3 },
     { id: 'performance', label: 'Performance', icon: Activity },
+    { id: 'traces', label: 'Traces', icon: Radio },
     { id: 'security', label: 'Security', icon: Shield, badge: riskLevel > 0 ? riskLevel : null },
     { id: 'insights', label: 'Insights', icon: Brain }
   ]
@@ -262,6 +264,10 @@ function App() {
 
       {activeTab === 'performance' && (
         <PerformanceDashboard />
+      )}
+
+      {activeTab === 'traces' && (
+        <TracesPanel />
       )}
 
       {activeTab === 'security' && (
