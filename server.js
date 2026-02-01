@@ -111,9 +111,10 @@ app.get('/api/usage', async (req, res) => {
     usage.toolCalls.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''))
     usage.toolCalls = usage.toolCalls.slice(0, 50)
 
-    // Calculate cache hit ratio
-    usage.cacheHitRatio = usage.totalInput > 0
-      ? ((usage.totalCacheRead / usage.totalInput) * 100).toFixed(1)
+    // Calculate cache hit ratio (cached / total input requests)
+    const totalInputRequests = usage.totalCacheRead + usage.totalInput
+    usage.cacheHitRatio = totalInputRequests > 0
+      ? ((usage.totalCacheRead / totalInputRequests) * 100).toFixed(1)
       : '0'
 
     res.json(usage)
