@@ -22,3 +22,8 @@ npm-debug.log*
 
 # Test coverage
 coverage/
+
+# Runtime state files
+detector-state.json
+*.db
+data/

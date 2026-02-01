@@ -7,12 +7,56 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  # Dagger-based CI (portable, runs same locally)
+  dagger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dagger
+        uses: dagger/dagger-for-github@v6
+        with:
+          version: "latest"
+
+      - name: Run CI Pipeline
+        run: dagger call ci --source=.
+
+  # Security scans via Dagger
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dagger
+        uses: dagger/dagger-for-github@v6
+        with:
+          version: "latest"
+
+      - name: Run Security Scan
+        run: dagger call security --source=.
+
+  # Docker build test via Dagger
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dagger
+        uses: dagger/dagger-for-github@v6
+        with:
+          version: "latest"
+
+      - name: Build and Test Docker Image
+        run: dagger call docker --source=.
+
+  # Keep matrix for cross-platform verification
+  matrix-test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        node-version: ['20', '22']
+        node-version: ['22']
+      fail-fast: false
 
     steps:
       - uses: actions/checkout@v4
@@ -24,38 +68,9 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Run linter
-        run: npm run lint
-
-      - name: Run tests
-        run: npm test
-
-      - name: Build frontend
-        run: npm run build
-
-  test-server:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
         run: |
           npm ci
           cd server && npm ci
 
-      - name: Run server tests
-        run: cd server && npm test
-
-      - name: Test server startup
-        run: |
-          cd server
-          timeout 5 node src/index.js || true
-          echo "✅ Server starts OK"
+      - name: Run tests
+        run: npm test
