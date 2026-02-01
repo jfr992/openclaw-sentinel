@@ -1,0 +1,80 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-server:
+    name: Server Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: server
+        run: npm ci
+      
+      - name: Run tests
+        working-directory: server
+        run: npm test
+      
+      - name: Run tests with coverage
+        working-directory: server
+        run: npm run test:coverage
+        continue-on-error: true
+
+  test-client:
+    name: Client Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: client
+        run: npm ci
+        continue-on-error: true  # Client tests not set up yet
+      
+      - name: Run tests
+        working-directory: client
+        run: npm test
+        continue-on-error: true  # Client tests not set up yet
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies (server)
+        working-directory: server
+        run: npm ci
+      
+      - name: Lint server
+        working-directory: server
+        run: npm run lint
+        continue-on-error: true  # ESLint not configured yet
