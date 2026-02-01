@@ -87,12 +87,13 @@ app.get('/api/usage', async (req, res) => {
               }
             }
 
-            // Tool calls
-            if (msg.toolCalls && Array.isArray(msg.toolCalls)) {
-              for (const tc of msg.toolCalls) {
-                if (usage.toolCalls.length < 100) {
+            // Tool calls - check content array for toolCall type
+            const content = msg.content || []
+            if (Array.isArray(content)) {
+              for (const item of content) {
+                if (item.type === 'toolCall' && item.name) {
                   usage.toolCalls.push({
-                    name: tc.name,
+                    name: item.name,
                     timestamp: entry.timestamp
                   })
                 }
