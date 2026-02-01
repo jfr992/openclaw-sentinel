@@ -11,26 +11,33 @@ export const CONTEXT_EVENTS = {
   CONTEXT_LOSS: 'context_loss'
 }
 
-// Patterns indicating the agent lost context and is asking for re-explanation
+// Patterns indicating the agent is ASKING USER for re-explanation
+// Note: Exclude informational statements like "context got truncated" - that's transparency, not confusion
+// Note: Exclude proactive context checks at session start - that's good practice
 const REASK_PATTERNS = [
-  { pattern: /context (got |was )?(truncated|lost|compacted)/i, weight: 1.0 },
-  { pattern: /what('s| is| was) the (\d+|number|value)/i, weight: 0.7 },
-  { pattern: /can you (remind|tell) me (again|what)/i, weight: 0.8 },
-  { pattern: /i('ve| have)? lost (the )?context/i, weight: 1.0 },
-  { pattern: /what (were|are) we (working on|doing|discussing)/i, weight: 0.9 },
-  { pattern: /could you (clarify|explain|repeat)/i, weight: 0.6 },
-  { pattern: /i don't have (the )?context/i, weight: 1.0 },
-  { pattern: /what (did you|do you) mean by/i, weight: 0.5 },
-  { pattern: /referring to\??$/i, weight: 0.6 },
-  { pattern: /which (file|project|task)/i, weight: 0.4 }
+  // Actual re-asks: agent asking user to explain again
+  { pattern: /can you (remind|tell) me (again |what )/i, weight: 0.8 },
+  { pattern: /could you (clarify|explain|repeat) (that|what|the)/i, weight: 0.7 },
+  { pattern: /what (did you|do you) mean by .+\?/i, weight: 0.6 },
+  { pattern: /sorry,? (could|can) you (say that|explain)/i, weight: 0.8 },
+  // Questions indicating confusion (must end with ?)
+  { pattern: /what('s| is| was) the (number|value) .+\?/i, weight: 0.5 },
+  { pattern: /referring to .+\?$/i, weight: 0.5 }
+  // Removed: "context got truncated" - informational, not asking
+  // Removed: "what were we working on" - proactive check, not confusion
+  // Removed: "i don't have context" - explaining situation, not asking
+  // Removed: "which file/project" - often legitimate clarifying question
 ]
 
 // Patterns indicating confusion (might be context loss)
+// Note: "let me check" is normal working behavior, NOT confusion
+// Note: Must be clear confusion, not just careful clarifying questions
 const CONFUSION_PATTERNS = [
-  { pattern: /i'm (not sure|confused|unclear)/i, weight: 0.6 },
-  { pattern: /sorry,? (i |what )/i, weight: 0.4 },
-  { pattern: /let me (check|read|look at)/i, weight: 0.3 },
-  { pattern: /i need (more )?(context|information|details)/i, weight: 0.7 }
+  { pattern: /i'm (really )?(confused|lost|unclear) about/i, weight: 0.7 },
+  { pattern: /sorry,? i don't understand (what|which|the)/i, weight: 0.6 },
+  { pattern: /wait,? i (thought|assumed) (we|you) (were|said)/i, weight: 0.7 }
+  // Removed: "not sure what" - often legitimate uncertainty, not confusion
+  // Removed: "i need context" - agent being transparent about state
 ]
 
 // Patterns in system messages indicating truncation
@@ -134,9 +141,9 @@ export function detectMemoryReads(toolCalls) {
 
   for (const tc of toolCalls) {
     if (tc.name !== 'Read') continue
-    
+
     const path = tc.arguments?.path || tc.arguments?.file_path || ''
-    
+
     for (const pattern of memoryPatterns) {
       if (pattern.test(path)) {
         events.push({
@@ -159,9 +166,9 @@ export function detectMemoryReads(toolCalls) {
  * @returns {Object} Context health analysis
  */
 export function calculateContextHealth(data) {
-  const { 
-    assistantTexts = [], 
-    systemTexts = [], 
+  const {
+    assistantTexts = [],
+    systemTexts = [],
     toolCalls = [],
     sessionDurationMs = 0,
     totalMessages = 0
@@ -198,7 +205,7 @@ export function calculateContextHealth(data) {
 
   // Calculate continuity rate
   // If we had to reask a lot relative to messages, continuity is low
-  const continuityRate = totalMessages > 0 
+  const continuityRate = totalMessages > 0
     ? Math.max(0, 100 - (reaskCount / totalMessages * 500))
     : 100
 

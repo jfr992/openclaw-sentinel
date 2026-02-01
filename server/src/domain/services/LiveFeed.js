@@ -1,6 +1,6 @@
 /**
  * LiveFeed - Real-time agent activity feed
- * 
+ *
  * Processes events from OpenClaw Gateway and maintains
  * a rolling buffer of recent activity for the dashboard.
  */
@@ -14,16 +14,16 @@ const MAX_RUNS = 50
 export class LiveFeed extends EventEmitter {
   constructor() {
     super()
-    
+
     // Rolling buffer of recent events
     this.events = []
-    
+
     // Active runs (by runId)
     this.activeRuns = new Map()
-    
+
     // Completed runs (limited history)
     this.completedRuns = []
-    
+
     // Stats
     this.stats = {
       totalEvents: 0,
@@ -39,7 +39,7 @@ export class LiveFeed extends EventEmitter {
    */
   processEvent(eventData) {
     const { event, payload, seq, stateVersion } = eventData
-    
+
     this.stats.totalEvents++
 
     // Normalize and store
@@ -49,7 +49,7 @@ export class LiveFeed extends EventEmitter {
       if (this.events.length > MAX_EVENTS) {
         this.events.pop()
       }
-      
+
       // Emit for WebSocket broadcast
       this.emit('activity', normalized)
     }
@@ -79,15 +79,15 @@ export class LiveFeed extends EventEmitter {
     switch (event) {
       case 'agent': {
         const { runId, stream, sessionKey, data, seq } = payload || {}
-        
+
         // Extract tool details
         const toolName = data?.name || data?.tool?.name
         const toolInput = data?.input || data?.tool?.input || data?.arguments
-        
+
         // Special handling for exec commands
         const isExec = toolName === 'exec'
         const command = isExec ? (toolInput?.command || toolInput) : null
-        
+
         return {
           ...base,
           runId,
@@ -105,7 +105,7 @@ export class LiveFeed extends EventEmitter {
           isExec
         }
       }
-      
+
       case 'chat': {
         const { runId, sessionKey, state, message } = payload || {}
         return {
@@ -117,12 +117,12 @@ export class LiveFeed extends EventEmitter {
           content: message?.content
         }
       }
-      
+
       case 'health':
       case 'tick':
       case 'presence':
         return base
-      
+
       default:
         return base
     }
@@ -130,9 +130,9 @@ export class LiveFeed extends EventEmitter {
 
   _handleAgentEvent(payload) {
     if (!payload?.runId) return
-    
+
     const { runId, stream, sessionKey, data } = payload
-    
+
     // Get or create run
     let run = this.activeRuns.get(runId)
     if (!run) {
@@ -164,16 +164,16 @@ export class LiveFeed extends EventEmitter {
       }
       run.toolCalls.push(toolCall)
       this.stats.totalToolCalls++
-      
+
       // Score for risk
       const risks = scoreToolCall({
         name: toolCall.name,
         arguments: toolCall.input
       })
-      
+
       if (risks.length > 0) {
         run.risks.push(...risks)
-        
+
         // Emit high-risk alerts
         const highRisks = risks.filter(r => r.level >= RISK_LEVELS.HIGH)
         for (const risk of highRisks) {
@@ -193,35 +193,35 @@ export class LiveFeed extends EventEmitter {
       run.status = 'completed'
       run.completedAt = Date.now()
       run.durationMs = run.completedAt - run.startedAt
-      
+
       // Move to completed
       this.activeRuns.delete(runId)
       this.completedRuns.unshift(run)
       if (this.completedRuns.length > MAX_RUNS) {
         this.completedRuns.pop()
       }
-      
+
       this.emit('run:complete', run)
     }
   }
 
   _handleChatEvent(payload) {
     if (!payload?.runId) return
-    
+
     const { runId, state } = payload
     const run = this.activeRuns.get(runId)
-    
+
     if (run && state === 'final') {
       run.status = 'completed'
       run.completedAt = Date.now()
       run.durationMs = run.completedAt - run.startedAt
-      
+
       this.activeRuns.delete(runId)
       this.completedRuns.unshift(run)
       if (this.completedRuns.length > MAX_RUNS) {
         this.completedRuns.pop()
       }
-      
+
       this.emit('run:complete', run)
     }
   }

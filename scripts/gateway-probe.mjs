@@ -2,7 +2,7 @@
 /**
  * Gateway Probe — Connect to OpenClaw WebSocket and log all events
  * Usage: node scripts/gateway-probe.mjs
- * 
+ *
  * Purpose: Understand what events OpenClaw broadcasts so we can
  * wire up live streaming to Cangrejo Monitor.
  */
@@ -41,7 +41,7 @@ ws.on('message', (data) => {
   try {
     const msg = JSON.parse(data.toString())
     const ts = new Date().toISOString().slice(11, 23)
-    
+
     // Handle challenge-response auth
     if (msg.type === 'event' && msg.event === 'connect.challenge') {
       console.log(`⚡ Challenge received, responding with token...`)
@@ -66,11 +66,11 @@ ws.on('message', (data) => {
       })
       return
     }
-    
+
     if (msg.type === 'res') {
       // Response to our request
       console.log(`← RES [${msg.id}] ok=${msg.ok}`)
-      
+
       if (msg.payload?.type === 'hello-ok') {
         console.log('  ✓ Handshake successful')
         console.log(`  • Protocol: ${msg.payload.protocol}`)
@@ -84,17 +84,17 @@ ws.on('message', (data) => {
       if (msg.error) {
         console.log('  ❌ Error:', msg.error)
       }
-    } 
+    }
     else if (msg.type === 'event') {
       // Event pushed from gateway
       console.log(`\n⚡ EVENT [${ts}] ${msg.event}`)
-      
+
       if (msg.event === 'agent') {
         // This is what we want!
         const p = msg.payload || {}
         console.log(`  • kind: ${p.kind}`)
         console.log(`  • runId: ${p.runId}`)
-        
+
         if (p.kind === 'tool_use') {
           console.log(`  • tool: ${p.name}`)
           console.log(`  • args: ${JSON.stringify(p.input || {}).slice(0, 200)}...`)

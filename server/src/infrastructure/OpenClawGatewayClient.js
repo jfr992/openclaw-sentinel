@@ -1,11 +1,11 @@
 /**
  * OpenClawGatewayClient - Connect to OpenClaw Gateway WebSocket
- * 
+ *
  * Handles:
  * - Challenge-response auth
  * - Event subscription (agent, chat, presence)
  * - Auto-reconnect with backoff
- * 
+ *
  * @example
  * const client = new OpenClawGatewayClient({
  *   url: 'ws://127.0.0.1:18789',
@@ -29,7 +29,7 @@ export class OpenClawGatewayClient extends EventEmitter {
     this.token = opts.token || process.env.OPENCLAW_GATEWAY_TOKEN || null
     this.clientId = opts.clientId || 'openclaw-probe'
     this.clientName = opts.clientName || 'OpenClaw Sentinel'
-    
+
     this.ws = null
     this.connected = false
     this.messageId = 1
@@ -37,7 +37,7 @@ export class OpenClawGatewayClient extends EventEmitter {
     this.reconnectMs = RECONNECT_BASE_MS
     this.shouldReconnect = true
     this.connectNonce = null
-    
+
     // Stats
     this.stats = {
       connectedAt: null,
@@ -87,11 +87,11 @@ export class OpenClawGatewayClient extends EventEmitter {
       const wasConnected = this.connected
       this.connected = false
       this.emit('disconnected', { code, reason: reason?.toString() || '' })
-      
+
       if (wasConnected) {
         this.stats.reconnects++
       }
-      
+
       this._scheduleReconnect()
     })
 
@@ -102,13 +102,13 @@ export class OpenClawGatewayClient extends EventEmitter {
 
   _scheduleReconnect() {
     if (!this.shouldReconnect) return
-    
+
     setTimeout(() => {
       if (this.shouldReconnect) {
         this._connect()
       }
     }, this.reconnectMs)
-    
+
     // Exponential backoff
     this.reconnectMs = Math.min(this.reconnectMs * 1.5, RECONNECT_MAX_MS)
   }
@@ -199,7 +199,7 @@ export class OpenClawGatewayClient extends EventEmitter {
 
     const id = String(this.messageId++)
     const msg = { type: 'req', id, method, params }
-    
+
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject })
       this.ws.send(JSON.stringify(msg))

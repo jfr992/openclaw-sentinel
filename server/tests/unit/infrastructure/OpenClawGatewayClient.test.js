@@ -13,26 +13,26 @@ class MockWebSocket extends EventEmitter {
     this.readyState = 0 // CONNECTING
     MockWebSocket.instances.push(this)
   }
-  
+
   send(data) {
     this.lastSent = JSON.parse(data)
   }
-  
+
   close() {
     this.readyState = 3 // CLOSED
     this.emit('close', 1000, '')
   }
-  
+
   // Test helpers
   simulateOpen() {
     this.readyState = 1 // OPEN
     this.emit('open')
   }
-  
+
   simulateMessage(data) {
     this.emit('message', JSON.stringify(data))
   }
-  
+
   simulateChallenge(nonce = 'test-nonce') {
     this.simulateMessage({
       type: 'event',
@@ -40,7 +40,7 @@ class MockWebSocket extends EventEmitter {
       payload: { nonce, ts: Date.now() }
     })
   }
-  
+
   simulateHelloOk() {
     this.simulateMessage({
       type: 'res',
@@ -81,7 +81,7 @@ describe('OpenClawGatewayClient', () => {
         role: 'operator',
         scopes: ['operator.read']
       }
-      
+
       expect(connectParams.minProtocol).toBe(3)
       expect(connectParams.maxProtocol).toBe(3)
     })
@@ -93,7 +93,7 @@ describe('OpenClawGatewayClient', () => {
         'openclaw-android', 'node-host', 'test', 'fingerprint',
         'openclaw-probe'
       ]
-      
+
       const clientId = 'openclaw-probe'
       expect(allowedIds).toContain(clientId)
     })
@@ -113,7 +113,7 @@ describe('OpenClawGatewayClient', () => {
         method: 'connect',
         params: {}
       }
-      
+
       expect(frame.type).toBe('req')
       expect(typeof frame.id).toBe('string')
       expect(frame.method.length).toBeGreaterThan(0)
@@ -131,7 +131,7 @@ describe('OpenClawGatewayClient', () => {
           data: { text: 'Hello', delta: 'Hello' }
         }
       }
-      
+
       expect(event.event).toBe('agent')
       expect(event.payload.runId).toBe('test-run')
     })
@@ -147,7 +147,7 @@ describe('OpenClawGatewayClient', () => {
           message: { role: 'assistant', content: [] }
         }
       }
-      
+
       expect(event.event).toBe('chat')
       expect(event.payload.state).toBe('delta')
     })
@@ -158,7 +158,7 @@ describe('OpenClawGatewayClient', () => {
         event: 'connect.challenge',
         payload: { nonce: 'abc123', ts: Date.now() }
       }
-      
+
       expect(event.event).toBe('connect.challenge')
       expect(event.payload.nonce).toBe('abc123')
     })
@@ -172,7 +172,7 @@ describe('OpenClawGatewayClient', () => {
         eventsReceived: 0,
         reconnects: 0
       }
-      
+
       expect(stats.messagesReceived).toBe(0)
       expect(stats.eventsReceived).toBe(0)
       expect(stats.reconnects).toBe(0)
@@ -181,7 +181,7 @@ describe('OpenClawGatewayClient', () => {
     it('should calculate uptime', () => {
       const connectedAt = Date.now() - 5000
       const uptimeMs = Date.now() - connectedAt
-      
+
       expect(uptimeMs).toBeGreaterThanOrEqual(5000)
       expect(uptimeMs).toBeLessThan(6000)
     })

@@ -10,7 +10,7 @@ export default function SecurityDashboard() {
   const [exposure, setExposure] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  
+
   // Live feed state
   const [connected, setConnected] = useState(false)
   const [liveStats, setLiveStats] = useState(null)
@@ -25,8 +25,8 @@ export default function SecurityDashboard() {
     try {
       const res = await fetch('/api/baseline/status')
       if (res.ok) setBaseline(await res.json())
-    } catch (err) {
-      console.error('Failed to fetch baseline:', err)
+    } catch {
+      // Silent fail - baseline fetch is non-critical
     }
   }, [])
 
@@ -39,8 +39,8 @@ export default function SecurityDashboard() {
         body: JSON.stringify({ type: 'command', value: command })
       })
       fetchBaseline()
-    } catch (err) {
-      console.error('Failed to whitelist:', err)
+    } catch {
+      // Silent fail
     }
   }
 
@@ -67,7 +67,7 @@ export default function SecurityDashboard() {
         setAlerts(data.alerts || [])
       }
       if (exposureRes.ok) setExposure(await exposureRes.json())
-      
+
       setError(null)
     } catch (err) {
       setError(err.message)
@@ -87,15 +87,14 @@ export default function SecurityDashboard() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
         const ws = new WebSocket(`${protocol}//${window.location.host}/ws/live`)
         wsRef.current = ws
-        
+
         ws.onopen = () => {
-          console.log('[Live] Connected')
           setConnected(true)
         }
-        
+
         ws.onmessage = (event) => {
           const msg = JSON.parse(event.data)
-          
+
           switch (msg.type) {
             case 'snapshot':
               // Initial data on connect
@@ -103,7 +102,7 @@ export default function SecurityDashboard() {
               setActiveRuns(msg.data.activeRuns || [])
               setRecentActivity(msg.data.recentEvents?.slice(0, 20) || [])
               break
-              
+
             case 'activity':
               // Real-time activity
               setRecentActivity(prev => [msg.data, ...prev].slice(0, 30))
@@ -113,15 +112,15 @@ export default function SecurityDashboard() {
                 totalEvents: (prev.totalEvents || 0) + 1
               } : prev)
               break
-              
+
             case 'run:start':
               setActiveRuns(prev => [msg.data, ...prev])
               break
-              
+
             case 'run:complete':
               setActiveRuns(prev => prev.filter(r => r.runId !== msg.data.runId))
               break
-              
+
             case 'risk:alert':
               // Add to alerts
               const newAlert = {
@@ -141,26 +140,23 @@ export default function SecurityDashboard() {
               break
           }
         }
-        
+
         ws.onerror = () => {
-          console.log('[Live] Connection error')
           setConnected(false)
         }
-        
+
         ws.onclose = () => {
-          console.log('[Live] Disconnected')
           setConnected(false)
           // Reconnect after 3s
           setTimeout(connectWs, 3000)
         }
       } catch (err) {
-        console.log('[Live] Failed to connect:', err.message)
         setConnected(false)
       }
     }
-    
+
     connectWs()
-    
+
     // Fallback polling for historical data (less frequent)
     const interval = setInterval(fetchData, 30000)
 
@@ -175,8 +171,26 @@ export default function SecurityDashboard() {
     try {
       await fetch(`/api/security/alerts/${id}/acknowledge`, { method: 'POST' })
       setAlerts(prev => prev.map(a => a.id === id ? { ...a, acknowledged: true } : a))
-    } catch (err) {
-      console.error('Failed to acknowledge:', err)
+    } catch {
+      // Silent fail
+    }
+  }
+
+  const acknowledgeAllAlerts = async () => {
+    try {
+      await fetch('/api/security/alerts/acknowledge-all', { method: 'POST' })
+      setAlerts(prev => prev.map(a => ({ ...a, acknowledged: true })))
+    } catch {
+      // Silent fail
+    }
+  }
+
+  const clearAllAlerts = async () => {
+    try {
+      await fetch('/api/security/alerts', { method: 'DELETE' })
+      setAlerts([])
+    } catch {
+      // Silent fail
     }
   }
 
@@ -200,8 +214,8 @@ export default function SecurityDashboard() {
           <h2 className="text-xl font-bold">Security Monitor</h2>
           {/* Live indicator */}
           <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ${
-            connected 
-              ? 'bg-green-500/20 text-green-400' 
+            connected
+              ? 'bg-green-500/20 text-green-400'
               : 'bg-red-500/20 text-red-400'
           }`}>
             <span className={`w-2 h-2 rounded-full ${connected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
@@ -243,7 +257,7 @@ export default function SecurityDashboard() {
             {!baseline.learned && (
               <div className="flex items-center gap-2">
                 <div className="w-32 h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-[var(--accent-amber)] transition-all"
                     style={{ width: `${baseline.learningProgress}%` }}
                   />
@@ -297,8 +311,8 @@ export default function SecurityDashboard() {
             <Shield className="w-4 h-4" />
             Risk Level
           </h3>
-          <RiskGauge 
-            level={risks?.level || 0} 
+          <RiskGauge
+            level={risks?.level || 0}
             levelName={risks?.levelName || 'NONE'}
             criticalCount={risks?.criticalCount || 0}
             highCount={risks?.highCount || 0}
@@ -368,7 +382,7 @@ export default function SecurityDashboard() {
           </h3>
           <div className="space-y-2">
             {activeRuns.map((run) => (
-              <div 
+              <div
                 key={run.runId}
                 className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)]"
               >
@@ -396,15 +410,35 @@ export default function SecurityDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Alert Feed */}
         <div className="card p-6">
-          <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-4 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-[var(--accent-amber)]" />
-            Recent Alerts
-            {alerts.filter(a => !a.acknowledged).length > 0 && (
-              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-[var(--accent-red)] text-white">
-                {alerts.filter(a => !a.acknowledged).length}
-              </span>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-[var(--text-secondary)] flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-[var(--accent-amber)]" />
+              Recent Alerts
+              {alerts.filter(a => !a.acknowledged).length > 0 && (
+                <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-[var(--accent-red)] text-white">
+                  {alerts.filter(a => !a.acknowledged).length}
+                </span>
+              )}
+            </h3>
+            {alerts.length > 0 && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={acknowledgeAllAlerts}
+                  className="text-xs px-2 py-1 rounded bg-[var(--bg-secondary)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                  title="Acknowledge all"
+                >
+                  ✓ Ack All
+                </button>
+                <button
+                  onClick={clearAllAlerts}
+                  className="text-xs px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors"
+                  title="Clear all alerts"
+                >
+                  Clear All
+                </button>
+              </div>
             )}
-          </h3>
+          </div>
           <AlertFeed alerts={alerts} onAcknowledge={acknowledgeAlert} />
         </div>
 
@@ -417,9 +451,17 @@ export default function SecurityDashboard() {
           </h3>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {recentActivity.length === 0 ? (
-              <p className="text-sm text-[var(--text-muted)] text-center py-4">
-                Waiting for activity...
-              </p>
+              <div className="text-sm text-[var(--text-muted)] text-center py-4">
+                {connected ? (
+                  <p>Waiting for activity...</p>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="font-medium">Gateway not connected</p>
+                    <p className="text-xs opacity-70">Live activity requires OpenClaw Gateway access.</p>
+                    <p className="text-xs opacity-50">Historical data is still available in other tabs.</p>
+                  </div>
+                )}
+              </div>
             ) : (
               recentActivity.map((event, i) => {
                 // Extract command details for exec tool calls
@@ -430,24 +472,24 @@ export default function SecurityDashboard() {
                 const eventId = event.id || `event-${i}`
                 const isExpanded = expandedItems.has(eventId)
                 const hasDetails = isExec || (toolInput && Object.keys(toolInput).length > 0)
-                
+
                 return (
-                  <div 
+                  <div
                     key={eventId}
                     className={`rounded text-xs ${
-                      isExec 
-                        ? 'bg-[var(--accent-amber)]/10 border border-[var(--accent-amber)]/30' 
+                      isExec
+                        ? 'bg-[var(--accent-amber)]/10 border border-[var(--accent-amber)]/30'
                         : 'bg-[var(--bg-secondary)]'
                     }`}
                   >
                     {/* Header - clickable if has details */}
-                    <div 
+                    <div
                       className={`p-2 flex items-center justify-between ${hasDetails ? 'cursor-pointer hover:bg-white/5' : ''}`}
                       onClick={() => hasDetails && toggleExpand(eventId)}
                     >
                       <div className="flex items-center gap-2">
                         {hasDetails && (
-                          isExpanded 
+                          isExpanded
                             ? <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />
                             : <ChevronRight className="w-3 h-3 text-[var(--text-muted)]" />
                         )}
@@ -469,7 +511,7 @@ export default function SecurityDashboard() {
                         {new Date(event.ts).toLocaleTimeString()}
                       </span>
                     </div>
-                    
+
                     {/* Expanded details */}
                     {isExpanded && (
                       <div className="px-2 pb-2 border-t border-[var(--border)] mt-1 pt-2">
@@ -495,7 +537,7 @@ export default function SecurityDashboard() {
                         )}
                       </div>
                     )}
-                    
+
                     {/* Show text delta for assistant messages (not expandable) */}
                     {event.delta && !toolName && (
                       <div className="px-2 pb-2 text-[var(--text-secondary)] truncate">
@@ -527,7 +569,7 @@ export default function SecurityDashboard() {
           </h3>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {risks.recentRisks.map((risk, i) => (
-              <div 
+              <div
                 key={i}
                 className={`p-3 rounded-lg border ${
                   risk.level >= 4 ? 'border-purple-500/50 bg-purple-500/10' :

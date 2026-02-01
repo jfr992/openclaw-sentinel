@@ -45,7 +45,7 @@ export default function RiskGauge({ level, levelName, criticalCount, highCount }
             className={`${colors.text} transition-all duration-500`}
           />
         </svg>
-        
+
         {/* Center icon and level */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <Icon className={`w-8 h-8 ${colors.text} ${level >= 3 ? 'animate-pulse' : ''}`} />

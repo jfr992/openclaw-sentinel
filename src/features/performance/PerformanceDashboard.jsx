@@ -1,47 +1,153 @@
 /**
  * PerformanceDashboard - Display all performance metrics
  */
-import { useState, useEffect, useCallback } from 'react'
-import { 
-  CheckCircle, 
-  Clock, 
-  Wrench, 
-  Brain, 
-  Zap, 
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import {
+  CheckCircle,
+  Clock,
+  Wrench,
+  Brain,
+  Zap,
   HeartPulse,
   RefreshCw,
-  Activity
+  Activity,
+  Calendar,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react'
 import OverallScore from './OverallScore'
 import MetricCard from './MetricCard'
 
-export default function PerformanceDashboard() {
+export default function PerformanceDashboard({ dateRange = 7, customStart, customEnd }) {
   const [summary, setSummary] = useState(null)
+  const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState(null)
   const [lastUpdate, setLastUpdate] = useState(null)
 
-  const fetchSummary = useCallback(async () => {
+  // Calculate date range for API
+  const { start, end, granularity } = useMemo(() => {
+    const now = new Date()
+    let startDate, endDate = now.toISOString()
+
+    if (customStart && customEnd) {
+      startDate = new Date(customStart).toISOString()
+      endDate = new Date(customEnd).toISOString()
+    } else {
+      const days = typeof dateRange === 'number' ? dateRange : 7
+      startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString()
+    }
+
+    const days = dateRange < 1 ? dateRange : dateRange
+    const gran = days <= 1 ? '5min' : days <= 7 ? 'hour' : 'day'
+
+    return { start: startDate, end: endDate, granularity: gran }
+  }, [dateRange, customStart, customEnd])
+
+  // Track if we have any data (for loading vs syncing decision)
+  const hasData = summary !== null || history.length > 0
+
+  const fetchData = useCallback(async () => {
     try {
-      setLoading(true)
-      const res = await fetch('/api/performance/summary')
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      setSummary(data)
+      // Always fetch live summary (for memory/proactive which aren't in historical)
+      // Plus historical data for trends
+      const [summaryRes, historyRes] = await Promise.all([
+        fetch('/api/performance/summary'),
+        fetch(`/api/metrics/performance?start=${start}&end=${end}&granularity=${granularity}`)
+      ])
+
+      if (summaryRes.ok) {
+        const data = await summaryRes.json()
+        setSummary(data)
+      }
+
+      if (historyRes.ok) {
+        const data = await historyRes.json()
+        setHistory(data.timeseries || [])
+      }
+
       setLastUpdate(new Date())
       setError(null)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
+      setSyncing(false)
     }
-  }, [])
+  }, [start, end, granularity])
 
   useEffect(() => {
-    fetchSummary()
-    const interval = setInterval(fetchSummary, 30000) // Refresh every 30s
+    // Set loading state before fetch
+    if (!hasData) {
+      setLoading(true)
+    } else {
+      setSyncing(true)
+    }
+    fetchData()
+    const interval = setInterval(() => {
+      setSyncing(true)
+      fetchData()
+    }, 30000)
     return () => clearInterval(interval)
-  }, [fetchSummary])
+  }, [fetchData, hasData])
+
+  // Calculate trend from history
+  const trend = useMemo(() => {
+    if (history.length < 2) return null
+    const recent = history.slice(-3)
+    const older = history.slice(0, 3)
+    const recentAvg = recent.reduce((a, b) => a + (b.overall_score || 0), 0) / recent.length
+    const olderAvg = older.reduce((a, b) => a + (b.overall_score || 0), 0) / older.length
+    return recentAvg - olderAvg
+  }, [history])
+
+  // Calculate summary from historical data
+  const historicalSummary = useMemo(() => {
+    if (!history || history.length === 0) return null
+
+    const avgTaskRate = history.reduce((a, b) => a + (b.task_completion_rate || 0), 0) / history.length
+    const avgLatency = history.reduce((a, b) => a + (b.avg_latency_ms || 0), 0) / history.length
+    const avgToolRate = history.reduce((a, b) => a + (b.tool_success_rate || 0), 0) / history.length
+    const avgOverall = history.reduce((a, b) => a + (b.overall_score || 0), 0) / history.length
+    const totalTasks = history.reduce((a, b) => a + (b.tasks_completed || 0), 0)
+    const totalTools = history.reduce((a, b) => a + (b.tool_calls_total || 0), 0)
+    const totalFailed = history.reduce((a, b) => a + (b.tool_calls_failed || 0), 0)
+
+    const avgMemoryRate = history.reduce((a, b) => a + (b.memory_usage_rate || 0), 0) / history.length
+    const avgProactive = history.reduce((a, b) => a + (b.proactive_score || 0), 0) / history.length
+
+    const overallScore = Math.round(avgOverall)
+    const status = overallScore >= 80 ? 'excellent' : overallScore >= 60 ? 'good' : overallScore >= 40 ? 'fair' : 'poor'
+
+    return {
+      overallScore,
+      status,
+      tasks: { completionRate: Math.round(avgTaskRate), total: totalTasks },
+      latency: { avgMs: Math.round(avgLatency), trend: 'stable' },
+      tools: { successRate: Math.round(avgToolRate), total: totalTools, failed: totalFailed },
+      memory: { usageRate: Math.round(avgMemoryRate), effectiveness: avgMemoryRate >= 80 ? 'excellent' : avgMemoryRate >= 50 ? 'good' : 'low' },
+      proactive: { valueScore: Math.round(avgProactive), total: 0 },
+      recovery: { recoveryRate: 100, totalErrors: totalFailed },
+      dataPoints: history.length
+    }
+  }, [history])
+
+  // Merge historical + live data
+  // Historical has trends (task/latency/tools), live has real-time metrics (memory/proactive/recovery)
+  const displayData = useMemo(() => {
+    if (!historicalSummary && !summary) return null
+    if (!historicalSummary) return summary
+
+    // Merge: historical for trended metrics, live for real-time ones
+    return {
+      ...historicalSummary,
+      // Always use live data for memory/proactive/recovery (not in historical buckets)
+      memory: summary?.memory || { usageRate: 0, effectiveness: 'unknown' },
+      proactive: summary?.proactive || { valueScore: 0, total: 0 },
+      recovery: summary?.recovery || { recoveryRate: 100, totalErrors: 0 }
+    }
+  }, [historicalSummary, summary])
 
   if (loading && !summary) {
     return (
@@ -56,8 +162,8 @@ export default function PerformanceDashboard() {
       <div className="p-6 rounded-lg bg-red-900/20 border border-red-800 text-red-400">
         <p className="font-medium">Failed to load performance data</p>
         <p className="text-sm mt-1">{error}</p>
-        <button 
-          onClick={fetchSummary}
+        <button
+          onClick={fetchData}
           className="mt-3 px-4 py-2 bg-red-800/50 rounded hover:bg-red-800/70 transition"
         >
           Retry
@@ -66,16 +172,17 @@ export default function PerformanceDashboard() {
     )
   }
 
-  const { 
-    overallScore = 0, 
+  const {
+    overallScore = 0,
     status = 'unknown',
     tasks = {},
     latency = {},
     tools = {},
     memory = {},
     proactive = {},
-    recovery = {}
-  } = summary || {}
+    recovery = {},
+    dataPoints = 0
+  } = displayData || {}
 
   return (
     <div className="space-y-6">
@@ -84,19 +191,25 @@ export default function PerformanceDashboard() {
         <div className="flex items-center gap-3">
           <Activity className="w-6 h-6 text-blue-400" />
           <h2 className="text-xl font-semibold text-gray-100">Performance</h2>
+          {dataPoints > 0 && (
+            <span className="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded">
+              {dataPoints} samples
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3">
-          {lastUpdate && (
+          {syncing && <span className="text-xs text-gray-500">syncing...</span>}
+          {lastUpdate && !syncing && (
             <span className="text-xs text-gray-500">
               Updated {lastUpdate.toLocaleTimeString()}
             </span>
           )}
-          <button 
-            onClick={fetchSummary}
-            disabled={loading}
+          <button
+            onClick={fetchData}
+            disabled={syncing}
             className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition disabled:opacity-50"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
@@ -138,10 +251,12 @@ export default function PerformanceDashboard() {
         />
 
         <MetricCard
-          title="Memory Usage"
+          title="Memory Retrieval"
           icon={Brain}
           value={memory.usageRate || 0}
           unit="%"
+          subValue={memory.totalQueries || 0}
+          subLabel="Queries"
           status={memory.effectiveness || 'unknown'}
         />
 

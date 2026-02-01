@@ -1,6 +1,6 @@
 /**
  * MemoryRetrievalTracker - Tracks vector memory usage and effectiveness
- * 
+ *
  * Monitors:
  * - How often vector memory is queried
  * - Query latencies
@@ -127,7 +127,7 @@ export function parseRetrievalEvents(messages) {
     const content = msg.content || '';
 
     const query = detectMemoryQuery(content);
-    
+
     if (query.isQuery) {
       pendingQuery = {
         type: query.type,
@@ -137,17 +137,17 @@ export function parseRetrievalEvents(messages) {
     } else if (pendingQuery && msg.role === 'assistant') {
       // Check if the response used the retrieved memory
       const usage = detectRetrievalUsed(content);
-      
+
       events.push({
         type: pendingQuery.type,
         timestamp: pendingQuery.timestamp,
         wasUsed: usage.wasUsed,
         confidence: usage.confidence,
-        latencyMs: msg.timestamp 
-          ? msg.timestamp - pendingQuery.timestamp 
+        latencyMs: msg.timestamp
+          ? msg.timestamp - pendingQuery.timestamp
           : undefined
       });
-      
+
       pendingQuery = null;
     }
   }
@@ -166,12 +166,12 @@ export function calculateMemoryMetrics(events, messages = []) {
   const vectorQueries = events.filter(e => e.type === 'vector').length;
   const fileQueries = events.filter(e => e.type === 'file').length;
   const usedQueries = events.filter(e => e.wasUsed).length;
-  
+
   // Calculate latencies
   const latencies = events
     .filter(e => e.latencyMs !== undefined)
     .map(e => e.latencyMs);
-  
+
   const avgLatency = latencies.length > 0
     ? latencies.reduce((a, b) => a + b, 0) / latencies.length
     : 0;
@@ -192,7 +192,7 @@ export function calculateMemoryMetrics(events, messages = []) {
     totalQueries,
     vectorQueries,
     fileQueries,
-    usageRate: totalQueries > 0 
+    usageRate: totalQueries > 0
       ? Math.round((usedQueries / totalQueries) * 100)
       : 0,
     avgLatencyMs: Math.round(avgLatency),

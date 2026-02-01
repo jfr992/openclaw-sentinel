@@ -1,6 +1,6 @@
 /**
  * TaskCompletionTracker - Measures whether tasks were actually completed
- * 
+ *
  * Analyzes conversation patterns to detect:
  * - User requests and whether they were fulfilled
  * - Follow-up questions indicating incomplete work
@@ -79,9 +79,9 @@ export function detectTaskRequest(text) {
   for (const pattern of TASK_PATTERNS) {
     const match = text.match(pattern);
     if (match) {
-      return { 
-        isTask: true, 
-        taskType: match[1]?.toLowerCase() || 'unknown' 
+      return {
+        isTask: true,
+        taskType: match[1]?.toLowerCase() || 'unknown'
       };
     }
   }
@@ -205,13 +205,13 @@ export function calculateTaskMetrics(messages) {
 
     if (msg.role === 'user') {
       const taskDetection = detectTaskRequest(content);
-      
+
       if (taskDetection.isTask) {
         // Save previous task if exists
         if (currentTask) {
           tasks.push(currentTask);
         }
-        
+
         currentTask = {
           type: taskDetection.taskType,
           startIndex: i,
@@ -223,7 +223,7 @@ export function calculateTaskMetrics(messages) {
         // Check if this is feedback on the task
         const incomplete = detectIncomplete(content);
         const satisfaction = detectSatisfaction(content);
-        
+
         if (incomplete.isIncomplete) {
           currentTask.completed = false;
           currentTask.confidence = 0;
@@ -235,7 +235,7 @@ export function calculateTaskMetrics(messages) {
       }
     } else if (msg.role === 'assistant' && currentTask) {
       const completion = detectCompletion(content);
-      
+
       if (completion.isComplete) {
         currentTask.completed = true;
         currentTask.confidence = Math.max(currentTask.confidence, completion.confidence);
@@ -265,8 +265,8 @@ export function calculateTaskMetrics(messages) {
     failedTasks,
     completionRate: tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0,
     avgConfidence: tasks.length > 0 ? (totalConfidence / tasks.length) * 100 : 0,
-    satisfactionRate: tasks.length > 0 
-      ? (tasks.filter(t => t.satisfied).length / tasks.length) * 100 
+    satisfactionRate: tasks.length > 0
+      ? (tasks.filter(t => t.satisfied).length / tasks.length) * 100
       : 0,
     taskTypes,
     tasks // Include raw tasks for debugging

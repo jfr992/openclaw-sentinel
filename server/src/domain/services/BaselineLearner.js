@@ -1,12 +1,12 @@
 /**
  * BaselineLearner - Learn normal behavior patterns to reduce false positives
- * 
+ *
  * Tracks:
  * - Command frequency by tool type
  * - Common file paths accessed
  * - Normal exec commands
  * - Typical activity times
- * 
+ *
  * After learning period, flags anomalies that deviate from baseline.
  */
 
@@ -15,7 +15,7 @@ import fs from 'fs'
 import path from 'path'
 import os from 'os'
 
-const BASELINE_FILE = process.env.BASELINE_FILE || 
+const BASELINE_FILE = process.env.BASELINE_FILE ||
   path.join(os.homedir(), '.openclaw', 'sentinel-baseline.json')
 
 const DEFAULT_CONFIG = {
@@ -38,7 +38,7 @@ export class BaselineLearner extends EventEmitter {
       paths: {},
       startedAt: Date.now()
     }
-    
+
     // Save periodically
     this._saveInterval = setInterval(() => this._save(), 60000)
   }
@@ -90,34 +90,34 @@ export class BaselineLearner extends EventEmitter {
    */
   recordToolCall(toolCall) {
     const { name, arguments: args } = toolCall
-    
+
     // Update current window
     this.currentWindow.tools[name] = (this.currentWindow.tools[name] || 0) + 1
-    
+
     // Track exec commands
     if (name === 'exec' && args?.command) {
       const cmdPattern = this._normalizeCommand(args.command)
       this.currentWindow.commands[cmdPattern] = (this.currentWindow.commands[cmdPattern] || 0) + 1
       this.baseline.stats.commandCounts[cmdPattern] = (this.baseline.stats.commandCounts[cmdPattern] || 0) + 1
     }
-    
+
     // Track file paths
     if (['Read', 'Write', 'Edit'].includes(name) && (args?.path || args?.file_path)) {
       const pathPattern = this._normalizePath(args.path || args.file_path)
       this.currentWindow.paths[pathPattern] = (this.currentWindow.paths[pathPattern] || 0) + 1
       this.baseline.stats.pathCounts[pathPattern] = (this.baseline.stats.pathCounts[pathPattern] || 0) + 1
     }
-    
+
     // Update global stats
     this.baseline.stats.toolCounts[name] = (this.baseline.stats.toolCounts[name] || 0) + 1
-    
+
     // Track hourly activity
     const hour = new Date().getHours().toString()
     this.baseline.stats.hourlyActivity[hour] = (this.baseline.stats.hourlyActivity[hour] || 0) + 1
-    
+
     // Check if learning period complete
     this._checkLearned()
-    
+
     // Flush window periodically (every hour)
     if (Date.now() - this.currentWindow.startedAt > 3600000) {
       this._flushWindow()
@@ -129,32 +129,42 @@ export class BaselineLearner extends EventEmitter {
       ...this.currentWindow,
       endedAt: Date.now()
     })
-    
+
     // Keep only last 168 windows (1 week of hourly data)
     if (this.baseline.windows.length > 168) {
       this.baseline.windows = this.baseline.windows.slice(-168)
     }
-    
+
     this.currentWindow = {
       tools: {},
       commands: {},
       paths: {},
       startedAt: Date.now()
     }
-    
+
     this._save()
   }
 
   _checkLearned() {
     if (this.baseline.learned) return
-    
+
+    const toolsLearned = Object.keys(this.baseline.stats.toolCounts).length
+    const commandsLearned = Object.keys(this.baseline.stats.commandCounts).length
     const hoursElapsed = (Date.now() - this.baseline.startedAt) / 3600000
-    if (hoursElapsed >= this.baseline.config.learningPeriodHours) {
+
+    // Consider learned if:
+    // 1. 24h has passed (original behavior), OR
+    // 2. We have enough data (10+ tools AND 100+ commands) - for seeded baselines
+    const hasEnoughData = toolsLearned >= 10 && commandsLearned >= 100
+    const timeElapsed = hoursElapsed >= this.baseline.config.learningPeriodHours
+
+    if (timeElapsed || hasEnoughData) {
       this.baseline.learned = true
       this.emit('learned', {
         hoursElapsed,
-        toolsLearned: Object.keys(this.baseline.stats.toolCounts).length,
-        commandsLearned: Object.keys(this.baseline.stats.commandCounts).length
+        toolsLearned,
+        commandsLearned,
+        reason: hasEnoughData ? 'data-volume' : 'time-elapsed'
       })
     }
   }
@@ -167,44 +177,44 @@ export class BaselineLearner extends EventEmitter {
     if (!this.baseline.learned) {
       return { isAnomaly: false, reason: 'learning' }
     }
-    
+
     const { name, arguments: args } = toolCall
     const config = this.baseline.config
-    
+
     // Check whitelists
     if (config.whitelistTools.includes(name)) {
       return { isAnomaly: false, reason: 'whitelisted_tool' }
     }
-    
+
     if (name === 'exec' && args?.command) {
       const cmd = args.command
       if (config.whitelistCommands.some(w => cmd.includes(w))) {
         return { isAnomaly: false, reason: 'whitelisted_command' }
       }
-      
+
       // Check if command pattern is known
       const cmdPattern = this._normalizeCommand(cmd)
       if (!this.baseline.stats.commandCounts[cmdPattern]) {
-        return { 
-          isAnomaly: true, 
+        return {
+          isAnomaly: true,
           reason: 'unknown_command',
           details: `Command pattern "${cmdPattern}" never seen before`
         }
       }
     }
-    
+
     if (['Read', 'Write', 'Edit'].includes(name)) {
       const filePath = args?.path || args?.file_path
       if (filePath && config.whitelistPaths.some(w => filePath.includes(w))) {
         return { isAnomaly: false, reason: 'whitelisted_path' }
       }
     }
-    
+
     // Check if tool is rarely used
     const toolCount = this.baseline.stats.toolCounts[name] || 0
     const avgToolCount = Object.values(this.baseline.stats.toolCounts)
       .reduce((a, b) => a + b, 0) / Object.keys(this.baseline.stats.toolCounts).length
-    
+
     if (toolCount < avgToolCount / config.anomalyThreshold) {
       return {
         isAnomaly: true,
@@ -212,7 +222,7 @@ export class BaselineLearner extends EventEmitter {
         details: `Tool "${name}" used ${toolCount} times (avg: ${Math.round(avgToolCount)})`
       }
     }
-    
+
     return { isAnomaly: false, reason: 'normal' }
   }
 
@@ -223,7 +233,7 @@ export class BaselineLearner extends EventEmitter {
     // Extract base command (first word)
     const parts = cmd.trim().split(/\s+/)
     const base = parts[0]
-    
+
     // Group by base command + key flags
     // e.g., "ls -la /some/path" -> "ls -la"
     // e.g., "git commit -m 'msg'" -> "git commit -m"
@@ -274,16 +284,24 @@ export class BaselineLearner extends EventEmitter {
    * Get current status
    */
   getStatus() {
+    const toolsLearned = Object.keys(this.baseline.stats.toolCounts).length
+    const commandsLearned = Object.keys(this.baseline.stats.commandCounts).length
     const hoursElapsed = (Date.now() - this.baseline.startedAt) / 3600000
+
+    // Calculate progress from both time AND data volume
+    const timeProgress = Math.min(100, (hoursElapsed / this.baseline.config.learningPeriodHours) * 100)
+    const dataProgress = Math.min(100, ((toolsLearned / 10) * 50) + ((commandsLearned / 100) * 50))
+    const learningProgress = Math.round(Math.max(timeProgress, dataProgress))
+
     return {
       learned: this.baseline.learned,
-      learningProgress: Math.min(100, Math.round(hoursElapsed / this.baseline.config.learningPeriodHours * 100)),
+      learningProgress,
       hoursElapsed: Math.round(hoursElapsed),
-      hoursRemaining: Math.max(0, Math.round(this.baseline.config.learningPeriodHours - hoursElapsed)),
+      hoursRemaining: this.baseline.learned ? 0 : Math.max(0, Math.round(this.baseline.config.learningPeriodHours - hoursElapsed)),
       config: this.baseline.config,
       stats: {
-        toolsLearned: Object.keys(this.baseline.stats.toolCounts).length,
-        commandsLearned: Object.keys(this.baseline.stats.commandCounts).length,
+        toolsLearned,
+        commandsLearned,
         pathsLearned: Object.keys(this.baseline.stats.pathCounts).length,
         windowsCollected: this.baseline.windows.length
       }
@@ -298,7 +316,7 @@ export class BaselineLearner extends EventEmitter {
       .sort((a, b) => b[1] - a[1])
       .slice(0, limit)
       .map(([pattern, count]) => ({ pattern, count }))
-    
+
     return {
       tools: sortByCount(this.baseline.stats.toolCounts),
       commands: sortByCount(this.baseline.stats.commandCounts),

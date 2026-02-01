@@ -17,15 +17,15 @@ router.get('/corrections', async (req, res) => {
   try {
     const { getSessionData } = req.app.locals
     const data = await getSessionData()
-    
+
     const correctionData = {
       messages: data.messages || [],
       toolCalls: data.toolCalls || [],
       assistantTexts: data.assistantTexts || []
     }
-    
+
     const analysis = calculateCorrectionScore(correctionData)
-    
+
     res.json({
       score: analysis.score,
       interpretation: analysis.interpretation,
@@ -48,10 +48,10 @@ router.get('/sentiment', async (req, res) => {
   try {
     const { getUserMessages } = req.app.locals
     const messages = await getUserMessages()
-    
+
     const analysis = analyzeConversation(messages)
     const feedbackScore = calculateFeedbackScore(analysis)
-    
+
     res.json({
       overall: analysis.overall,
       feedbackScore,
@@ -78,9 +78,9 @@ router.get('/context', async (req, res) => {
   try {
     const { getContextData } = req.app.locals
     const data = await getContextData()
-    
+
     const analysis = calculateContextHealth(data)
-    
+
     res.json({
       healthScore: analysis.healthScore,
       continuityRate: analysis.continuityRate,
@@ -102,29 +102,29 @@ router.get('/context', async (req, res) => {
 router.get('/summary', async (req, res) => {
   try {
     const { getSessionData, getUserMessages, getContextData } = req.app.locals
-    
+
     const [sessionData, userMessages, contextData] = await Promise.all([
       getSessionData(),
       getUserMessages(),
       getContextData()
     ])
-    
+
     const corrections = calculateCorrectionScore({
       messages: sessionData.messages || [],
       toolCalls: sessionData.toolCalls || [],
       assistantTexts: sessionData.assistantTexts || []
     })
-    
+
     const sentiment = analyzeConversation(userMessages)
     const feedbackScore = calculateFeedbackScore(sentiment)
     const contextHealth = calculateContextHealth(contextData)
-    
+
     // Calculate overall health score (weighted average)
     const correctionPenalty = Math.min(30, corrections.score * 0.3)
     const sentimentBonus = (feedbackScore - 50) * 0.3
     const contextBonus = (contextHealth.healthScore - 50) * 0.2
     const healthScore = Math.max(0, Math.min(100, 60 - correctionPenalty + sentimentBonus + contextBonus))
-    
+
     res.json({
       healthScore: Math.round(healthScore),
       corrections: {

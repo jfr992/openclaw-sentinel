@@ -83,7 +83,7 @@ describe('TaskCompletionTracker', () => {
       ];
 
       const metrics = calculateTaskMetrics(messages);
-      
+
       expect(metrics.totalTasks).toBe(1);
       expect(metrics.completedTasks).toBe(1);
       expect(metrics.completionRate).toBe(100);
@@ -97,7 +97,7 @@ describe('TaskCompletionTracker', () => {
       ];
 
       const metrics = calculateTaskMetrics(messages);
-      
+
       expect(metrics.totalTasks).toBe(1);
       expect(metrics.failedTasks).toBe(1);
     });

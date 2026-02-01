@@ -12,12 +12,12 @@ export default function SessionInfo({ sessions }) {
   return (
     <div className="space-y-3 max-h-64 overflow-y-auto">
       {sessions.map((session) => {
-        const lastActivity = session.lastModified 
+        const lastActivity = session.lastModified
           ? new Date(session.lastModified).toLocaleString()
           : 'Unknown'
-        
+
         return (
-          <div 
+          <div
             key={session.key}
             className="p-3 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--border)] transition-colors"
           >
@@ -26,7 +26,7 @@ export default function SessionInfo({ sessions }) {
                 {session.key?.slice(0, 8) || 'Session'}...
               </span>
               <span className={`text-xs px-2 py-0.5 rounded ${
-                session.agent === 'main' 
+                session.agent === 'main'
                   ? 'bg-[var(--accent-orange)]/20 text-[var(--accent-orange)]'
                   : 'bg-[var(--accent-purple)]/20 text-[var(--accent-purple)]'
               }`}>

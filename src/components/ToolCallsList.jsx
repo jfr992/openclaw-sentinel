@@ -23,7 +23,7 @@ export default function ToolCallsList({ calls }) {
           .sort((a, b) => b[1] - a[1])
           .slice(0, 8)
           .map(([name, count]) => (
-            <span 
+            <span
               key={name}
               className="px-2 py-1 rounded-md bg-[var(--bg-secondary)] text-xs font-mono flex items-center gap-1"
             >
@@ -37,7 +37,7 @@ export default function ToolCallsList({ calls }) {
       {/* Recent calls list */}
       <div className="max-h-48 overflow-y-auto space-y-1">
         {calls.slice(0, 15).map((call, i) => (
-          <div 
+          <div
             key={i}
             className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-[var(--bg-secondary)] transition-colors"
           >

@@ -45,7 +45,7 @@ describe('ResponseLatencyTracker', () => {
         { role: 'user', content: 'Hi', timestamp: 1000 },
         { role: 'assistant', content: 'Hello', timestamp: 2000 }
       ];
-      
+
       const latencies = extractLatencies(messages);
       expect(latencies).toHaveLength(1);
       expect(latencies[0].latencyMs).toBe(1000);
@@ -61,7 +61,7 @@ describe('ResponseLatencyTracker', () => {
       ];
 
       const metrics = calculateLatencyMetrics(latencies);
-      
+
       expect(metrics.count).toBe(3);
       expect(metrics.avgMs).toBe(200);
       expect(metrics.minMs).toBe(100);

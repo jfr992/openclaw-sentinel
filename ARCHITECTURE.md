@@ -160,7 +160,7 @@ class Session {
     this.createdAt = createdAt
     this.lastActivity = lastActivity
   }
-  
+
   get messageCount() { return this.messages.length }
   get toolCalls() { return this.messages.flatMap(m => m.toolCalls) }
   get totalTokens() { return this.messages.reduce((sum, m) => sum + m.tokens, 0) }
@@ -171,7 +171,7 @@ class Session {
 ```javascript
 class Risk {
   static LEVELS = { LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 }
-  
+
   constructor({ type, level, description, evidence, timestamp }) {
     this.type = type
     this.level = level
@@ -179,7 +179,7 @@ class Risk {
     this.evidence = evidence
     this.timestamp = timestamp
   }
-  
+
   get isCritical() { return this.level >= Risk.LEVELS.CRITICAL }
 }
 ```
@@ -234,11 +234,11 @@ describe('UsageCalculator', () => {
     it('returns 0 when no input', () => {
       expect(calculateCacheHitRatio(0, 0)).toBe(0)
     })
-    
+
     it('calculates ratio correctly', () => {
       expect(calculateCacheHitRatio(80, 20)).toBe(80)  // 80%
     })
-    
+
     it('handles 100% cache hit', () => {
       expect(calculateCacheHitRatio(1000, 0)).toBe(100)
     })

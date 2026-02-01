@@ -90,21 +90,22 @@ describe('SelfCorrectionTracker', () => {
       expect(detectToolRetries(calls, { windowMs: 60000 })).toEqual([])
     })
 
-    it('has higher confidence for very quick retries', () => {
+    it('has higher confidence when previous call failed', () => {
       const now = new Date()
-      const quickCalls = [
-        { name: 'exec', timestamp: now.toISOString() },
+      const failedFirstCalls = [
+        { name: 'exec', timestamp: now.toISOString(), success: false },
         { name: 'exec', timestamp: new Date(now.getTime() + 2000).toISOString() }
       ]
-      const slowCalls = [
-        { name: 'exec', timestamp: now.toISOString() },
-        { name: 'exec', timestamp: new Date(now.getTime() + 30000).toISOString() }
+      const unknownSuccessCalls = [
+        { name: 'exec', timestamp: now.toISOString() }, // success undefined
+        { name: 'exec', timestamp: new Date(now.getTime() + 2000).toISOString() }
       ]
-      
-      const quickResult = detectToolRetries(quickCalls)
-      const slowResult = detectToolRetries(slowCalls)
-      
-      expect(quickResult[0].confidence).toBeGreaterThan(slowResult[0].confidence)
+
+      const failedResult = detectToolRetries(failedFirstCalls)
+      const unknownResult = detectToolRetries(unknownSuccessCalls)
+
+      expect(failedResult[0].confidence).toBe(1.0)  // Known failure
+      expect(unknownResult[0].confidence).toBe(0.7) // Unknown success
     })
   })
 
@@ -223,7 +224,7 @@ describe('SelfCorrectionTracker', () => {
       const highScore = calculateCorrectionScore({
         assistantTexts: Array(20).fill('Oops, my bad, let me fix that.')
       })
-      
+
       expect(lowScore.interpretation).not.toBe(highScore.interpretation)
     })
   })

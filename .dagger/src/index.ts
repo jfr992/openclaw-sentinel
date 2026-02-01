@@ -1,6 +1,6 @@
 /**
  * Cangrejo Monitor - Dagger CI/CD Pipeline
- * 
+ *
  * Local and portable testing pipeline for cangrejo-monitor.
  * Run with: dagger call <function>
  */
@@ -117,7 +117,7 @@ export class CangrejoMonitor {
   image(source: Directory): Container {
     // Build frontend first
     const dist = this.build(source)
-    
+
     return dag
       .container()
       .from("node:22-alpine")

@@ -105,14 +105,14 @@ export function detectAnomalies(currentCalls, baseline, options = {}) {
     const hour = new Date(tc.timestamp).getHours()
     return hour >= offHoursStart || hour < offHoursEnd
   })
-  
+
   if (offHoursCalls.length > 0) {
     // Check if off-hours activity is unusual
     const baselineOffHours = baseline.hourlyDistribution
       .slice(offHoursStart)
       .concat(baseline.hourlyDistribution.slice(0, offHoursEnd))
       .reduce((a, b) => a + b, 0)
-    
+
     const totalBaseline = baseline.hourlyDistribution.reduce((a, b) => a + b, 0) || 1
     const offHoursRatio = baselineOffHours / totalBaseline
 
@@ -133,7 +133,7 @@ export function detectAnomalies(currentCalls, baseline, options = {}) {
   // 3. New Tool Detection
   const currentTools = new Set(currentCalls.map(tc => tc.name))
   const newTools = [...currentTools].filter(t => !baseline.knownTools.has(t))
-  
+
   if (newTools.length > 0) {
     anomalies.push({
       type: ANOMALY_TYPES.NEW_TOOL,
@@ -150,7 +150,7 @@ export function detectAnomalies(currentCalls, baseline, options = {}) {
   for (const [tool, count] of Object.entries(countTools(currentCalls))) {
     const baselineCount = baseline.toolFrequency[tool] || 0
     const baselineAvgPerSession = baselineCount / (baseline.totalDays || 1)
-    
+
     if (baselineAvgPerSession > 0 && count > baselineAvgPerSession * burstThreshold) {
       anomalies.push({
         type: ANOMALY_TYPES.UNUSUAL_FREQUENCY,

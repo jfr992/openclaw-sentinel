@@ -9,28 +9,30 @@ services:
     image: openclaw-sentinel:latest
     container_name: openclaw-sentinel
     restart: unless-stopped
-    
+
     # Security: Run as non-root
     user: "65532:65532"
-    
+
     # Security: Read-only filesystem
     read_only: true
-    
+
     # Security: Minimal capabilities
     cap_drop:
       - ALL
-    
+
     # Security: No privilege escalation
     security_opt:
       - no-new-privileges:true
-    
+
     # Temp directories (required for Node.js)
     tmpfs:
       - /tmp:noexec,nosuid,size=64m
-    
+
     ports:
-      - "${PORT:-5056}:5056"
-    
+      # Bind to localhost only by default (secure)
+      # Change to "5056:5056" for home network access
+      - "127.0.0.1:${PORT:-5056}:5056"
+
     environment:
       - NODE_ENV=production
       - PORT=5056
@@ -39,23 +41,23 @@ services:
       - OPENCLAW_DIR=/data/.openclaw
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - BASELINE_FILE=/data/baseline.json
-    
+
     volumes:
       # Mount OpenClaw data directory (read-only for session logs)
       - ${OPENCLAW_DIR:-~/.openclaw}:/data/.openclaw:ro
       # Persistent baseline storage
       - sentinel-data:/data:rw
-    
+
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:5056/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
-    
+
     networks:
       - sentinel-net
-    
+
     # Resource limits
     deploy:
       resources:
@@ -65,7 +67,7 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
-    
+
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.sentinel.rule=Host(`sentinel.localhost`)"

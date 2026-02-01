@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Brain, Zap, Search, Database, Clock, RefreshCw, AlertCircle, CheckCircle2, Layers, FileText } from 'lucide-react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Brain, Zap, Search, Database, Clock, RefreshCw, AlertCircle, CheckCircle2, Layers, FileText, TrendingUp } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 function StatCard({ title, value, subtitle, icon: Icon, color = 'orange' }) {
   const colors = {
@@ -27,7 +28,7 @@ function StatCard({ title, value, subtitle, icon: Icon, color = 'orange' }) {
 
 function AgentCard({ agent }) {
   const hasIssues = agent.issues?.length > 0
-  
+
   return (
     <div className={`card p-4 ${hasIssues ? 'border-yellow-500/30' : ''}`}>
       <div className="flex items-center justify-between mb-3">
@@ -45,7 +46,7 @@ function AgentCard({ agent }) {
           )}
         </div>
       </div>
-      
+
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="flex justify-between">
           <span className="text-[var(--text-muted)]">Files</span>
@@ -70,14 +71,14 @@ function AgentCard({ agent }) {
           </div>
         )}
       </div>
-      
+
       {agent.dirty && (
         <div className="mt-2 text-xs text-yellow-400 flex items-center gap-1">
           <AlertCircle className="w-3 h-3" />
           Needs reindexing
         </div>
       )}
-      
+
       {hasIssues && (
         <div className="mt-2 text-xs text-yellow-400">
           {agent.issues.map((issue, i) => (
@@ -88,7 +89,7 @@ function AgentCard({ agent }) {
           ))}
         </div>
       )}
-      
+
       {agent.sources?.length > 0 && (
         <div className="mt-3 pt-2 border-t border-[var(--border)]">
           <span className="text-xs text-[var(--text-muted)]">Sources:</span>
@@ -106,35 +107,76 @@ function AgentCard({ agent }) {
   )
 }
 
-export function MemoryDashboard() {
+export function MemoryDashboard({ dateRange = 7, customStart, customEnd }) {
   const [data, setData] = useState(null)
+  const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState(null)
+
+  const hasData = data !== null || history.length > 0
+
+  // Calculate date range for API
+  const { start, end, granularity } = useMemo(() => {
+    const now = new Date()
+    let startDate, endDate = now.toISOString()
+
+    if (customStart && customEnd) {
+      startDate = new Date(customStart).toISOString()
+      endDate = new Date(customEnd).toISOString()
+    } else {
+      const days = typeof dateRange === 'number' ? dateRange : 7
+      startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString()
+    }
+
+    const days = dateRange < 1 ? dateRange : dateRange
+    const gran = days <= 1 ? '5min' : days <= 7 ? 'hour' : 'day'
+
+    return { start: startDate, end: endDate, granularity: gran }
+  }, [dateRange, customStart, customEnd])
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch('/api/memory')
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || `HTTP ${res.status}`)
+      // Fetch both current state and historical data
+      const [currentRes, historyRes] = await Promise.all([
+        fetch('/api/memory'),
+        fetch(`/api/metrics/memory?start=${start}&end=${end}&granularity=${granularity}`)
+      ])
+
+      if (currentRes.ok) {
+        const result = await currentRes.json()
+        setData(result)
       }
-      const data = await res.json()
-      setData(data)
+
+      if (historyRes.ok) {
+        const result = await historyRes.json()
+        setHistory(result.timeseries || [])
+      }
+
       setError(null)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
+      setSyncing(false)
     }
-  }, [])
+  }, [start, end, granularity])
 
   useEffect(() => {
+    if (!hasData) {
+      setLoading(true)
+    } else {
+      setSyncing(true)
+    }
     fetchData()
-    const interval = setInterval(fetchData, 30000)
+    const interval = setInterval(() => {
+      setSyncing(true)
+      fetchData()
+    }, 30000)
     return () => clearInterval(interval)
-  }, [fetchData])
+  }, [fetchData, hasData])
 
-  if (loading) {
+  if (loading && !hasData) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -155,7 +197,7 @@ export function MemoryDashboard() {
             <p className="text-sm text-[var(--text-muted)] mt-1">{error}</p>
           </div>
         </div>
-        <button 
+        <button
           onClick={fetchData}
           className="mt-4 flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-secondary)] rounded text-sm hover:bg-[var(--border)] transition-colors"
         >
@@ -180,7 +222,7 @@ export function MemoryDashboard() {
             <p className="text-xs text-[var(--text-muted)]">Vector search & semantic memory</p>
           </div>
         </div>
-        
+
         <div className="card p-6 border-[var(--border)] bg-[var(--bg-secondary)]">
           <div className="flex items-start gap-4">
             <Database className="w-8 h-8 text-[var(--text-muted)]" />
@@ -210,13 +252,14 @@ export function MemoryDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Brain className="w-6 h-6 text-[var(--accent-purple)]" />
+          <Brain className={`w-6 h-6 text-[var(--accent-purple)] ${syncing ? 'animate-pulse' : ''}`} />
           <div>
             <h2 className="text-lg font-semibold">OpenClaw Memory</h2>
             <p className="text-xs text-[var(--text-muted)]">
               Built-in vector search • {mainAgent?.provider || 'auto'} ({mainAgent?.model || 'detecting...'})
             </p>
           </div>
+          {syncing && <span className="text-xs text-[var(--text-muted)]">syncing...</span>}
         </div>
         <div className="flex items-center gap-3">
           {totals?.vectorReady && totals?.ftsReady ? (
@@ -231,10 +274,11 @@ export function MemoryDashboard() {
             </span>
           )}
           <button
-            onClick={fetchData}
-            className="p-1.5 rounded bg-[var(--bg-secondary)] hover:bg-[var(--border)] transition-colors"
+            onClick={() => { setSyncing(true); fetchData(); }}
+            disabled={syncing}
+            className="p-1.5 rounded bg-[var(--bg-secondary)] hover:bg-[var(--border)] transition-colors disabled:opacity-50"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
@@ -270,6 +314,83 @@ export function MemoryDashboard() {
           color="green"
         />
       </div>
+
+      {/* History Chart */}
+      {history.length > 0 && (
+        <div className="card p-6">
+          <h4 className="text-sm font-semibold text-[var(--text-secondary)] mb-4 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-[var(--accent-cyan)]" />
+            Memory Growth
+            <span className="text-xs text-[var(--text-muted)] ml-auto font-normal">
+              {history.length} data points
+            </span>
+          </h4>
+
+          {history.length < 3 && (
+            <div className="mb-4 p-3 rounded-lg bg-[var(--accent-cyan)]/10 border border-[var(--accent-cyan)]/30">
+              <p className="text-sm text-[var(--accent-cyan)]">
+                📊 Tracking started — data accumulates every 5 minutes. Chart will show trends as memory changes over time.
+              </p>
+            </div>
+          )}
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={history}>
+                <XAxis
+                  dataKey="period"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#71717a', fontSize: 10 }}
+                  tickFormatter={(v) => {
+                    const d = new Date(v)
+                    return granularity === 'day' ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) :
+                           d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                  }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#71717a', fontSize: 10 }}
+                  width={50}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: '#1a1a24',
+                    border: '1px solid #2a2a3a',
+                    borderRadius: '8px',
+                    fontSize: '12px'
+                  }}
+                  labelFormatter={(v) => new Date(v).toLocaleString()}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="chunks_total"
+                  name="Chunks"
+                  stroke="#22d3ee"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="files_indexed"
+                  name="Files"
+                  stroke="#f97316"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="cache_entries"
+                  name="Cache"
+                  stroke="#22c55e"
+                  strokeWidth={2}
+                  dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {/* Capabilities */}
       <div className="card p-4">

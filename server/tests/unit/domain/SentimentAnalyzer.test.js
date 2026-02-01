@@ -201,32 +201,37 @@ describe('SentimentAnalyzer', () => {
     it('returns high score for positive conversation', () => {
       const analysis = {
         totalMessages: 10,
+        distribution: { positive: 8, negative: 1, neutral: 1 }, // 8:1 positive ratio
         satisfactionRate: 80,
-        frustrationRate: 5,
+        frustrationRate: 10,
         trend: 'improving',
         recentSentiment: SENTIMENT.POSITIVE
       }
       const score = calculateFeedbackScore(analysis)
+      // Base: 50 + (7/9)*40 = 81, + improving(8) + recent positive(5) = 94
       expect(score).toBeGreaterThan(80)
     })
 
     it('returns low score for negative conversation', () => {
       const analysis = {
         totalMessages: 10,
+        distribution: { positive: 1, negative: 8, neutral: 1 }, // 1:8 negative ratio
         satisfactionRate: 10,
-        frustrationRate: 60,
+        frustrationRate: 80,
         trend: 'declining',
         recentSentiment: SENTIMENT.NEGATIVE
       }
       const score = calculateFeedbackScore(analysis)
+      // Base: 50 + (-7/9)*40 = 19, - declining(8) - recent negative(5) = 6
       expect(score).toBeLessThan(30)
     })
 
     it('adjusts for trend', () => {
       const improving = {
         totalMessages: 10,
+        distribution: { positive: 5, negative: 5, neutral: 0 }, // Neutral ratio
         satisfactionRate: 50,
-        frustrationRate: 20,
+        frustrationRate: 50,
         trend: 'improving',
         recentSentiment: SENTIMENT.NEUTRAL
       }
@@ -234,7 +239,7 @@ describe('SentimentAnalyzer', () => {
         ...improving,
         trend: 'declining'
       }
-      
+
       expect(calculateFeedbackScore(improving)).toBeGreaterThan(
         calculateFeedbackScore(declining)
       )
@@ -243,6 +248,7 @@ describe('SentimentAnalyzer', () => {
     it('caps score between 0 and 100', () => {
       const veryPositive = {
         totalMessages: 10,
+        distribution: { positive: 10, negative: 0, neutral: 0 },
         satisfactionRate: 100,
         frustrationRate: 0,
         trend: 'improving',
@@ -250,12 +256,13 @@ describe('SentimentAnalyzer', () => {
       }
       const veryNegative = {
         totalMessages: 10,
+        distribution: { positive: 0, negative: 10, neutral: 0 },
         satisfactionRate: 0,
         frustrationRate: 100,
         trend: 'declining',
         recentSentiment: SENTIMENT.NEGATIVE
       }
-      
+
       expect(calculateFeedbackScore(veryPositive)).toBeLessThanOrEqual(100)
       expect(calculateFeedbackScore(veryNegative)).toBeGreaterThanOrEqual(0)
     })

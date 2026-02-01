@@ -21,13 +21,13 @@ export default function CostChart({ data }) {
     <div className="h-48">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData}>
-          <XAxis 
-            dataKey="date" 
+          <XAxis
+            dataKey="date"
             axisLine={false}
             tickLine={false}
             tick={{ fill: '#71717a', fontSize: 10 }}
           />
-          <YAxis 
+          <YAxis
             axisLine={false}
             tickLine={false}
             tick={{ fill: '#71717a', fontSize: 10 }}
@@ -44,9 +44,9 @@ export default function CostChart({ data }) {
             formatter={(value) => [`$${value.toFixed(2)}`, 'Cost']}
             labelFormatter={(label) => `Date: ${label}`}
           />
-          <Bar 
-            dataKey="cost" 
-            fill="#22c55e" 
+          <Bar
+            dataKey="cost"
+            fill="#22c55e"
             radius={[4, 4, 0, 0]}
             maxBarSize={40}
           />

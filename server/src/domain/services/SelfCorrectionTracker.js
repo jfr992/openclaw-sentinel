@@ -62,8 +62,8 @@ export function detectVerbalCorrections(text) {
  */
 export function detectToolRetries(toolCalls, options = {}) {
   const {
-    windowMs = 60000,  // 1 minute window
-    sameArgsOnly = false
+    windowMs = 30000,  // 30 second window (tighter)
+    sameArgsOnly = true  // Require same arguments to count as retry
   } = options
 
   if (!toolCalls || toolCalls.length < 2) return []
@@ -73,6 +73,9 @@ export function detectToolRetries(toolCalls, options = {}) {
     .filter(tc => tc.timestamp)
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
 
+  // Tools that are commonly called repeatedly (not retries)
+  const pollingTools = ['process']
+
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1]
     const curr = sorted[i]
@@ -80,8 +83,16 @@ export function detectToolRetries(toolCalls, options = {}) {
     // Check if same tool
     if (prev.name !== curr.name) continue
 
+    // Skip tools that are expected to be called repeatedly
+    if (pollingTools.includes(curr.name)) continue
+
     // Check time window
     const timeDiff = new Date(curr.timestamp) - new Date(prev.timestamp)
+
+    // Skip parallel calls (same timestamp or < 500ms apart = not a retry)
+    if (timeDiff < 500) continue
+
+    // Skip if too far apart (not related)
     if (timeDiff > windowMs) continue
 
     // Optionally check if arguments are similar
@@ -91,13 +102,17 @@ export function detectToolRetries(toolCalls, options = {}) {
       if (prevArgs !== currArgs) continue
     }
 
+    // Only count as retry if previous call failed (when we have that info)
+    // If success info is available and prev succeeded, skip
+    if (prev.success === true) continue
+
     retries.push({
       type: CORRECTION_TYPES.TOOL_RETRY,
       tool: curr.name,
       count: 2,
       timeDiffMs: timeDiff,
       timestamps: [prev.timestamp, curr.timestamp],
-      confidence: timeDiff < 10000 ? 0.9 : 0.6 // Higher confidence if very quick
+      confidence: prev.success === false ? 1.0 : 0.7 // Higher if we know prev failed
     })
   }
 
@@ -121,7 +136,7 @@ export function detectFileReedits(toolCalls, options = {}) {
   // Group edits by file
   for (const tc of toolCalls) {
     if (!['Write', 'Edit'].includes(tc.name)) continue
-    
+
     const path = tc.arguments?.path || tc.arguments?.file_path
     if (!path) continue
 
@@ -139,7 +154,7 @@ export function detectFileReedits(toolCalls, options = {}) {
 
     for (let i = 1; i < sorted.length; i++) {
       const timeDiff = new Date(sorted[i].timestamp) - new Date(sorted[i-1].timestamp)
-      
+
       if (timeDiff <= windowMs) {
         reedits.push({
           type: CORRECTION_TYPES.FILE_REEDIT,
@@ -165,7 +180,7 @@ export function detectErrorRecovery(messages) {
   if (!messages || messages.length < 2) return []
 
   const recoveries = []
-  
+
   for (let i = 1; i < messages.length; i++) {
     const prev = messages[i - 1]
     const curr = messages[i]

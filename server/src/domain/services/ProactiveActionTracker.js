@@ -1,6 +1,6 @@
 /**
  * ProactiveActionTracker - Tracks actions taken without explicit user request
- * 
+ *
  * Monitors:
  * - Heartbeat-driven actions
  * - Autonomous checks (email, calendar, etc.)
@@ -120,15 +120,15 @@ export function parseProactiveActions(messages) {
 
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
-    
+
     if (msg.role !== 'assistant') continue;
-    
+
     const previousUserMsg = i > 0 && messages[i - 1].role === 'user'
       ? messages[i - 1].content || ''
       : '';
-    
+
     const detection = detectProactiveAction(msg.content || '', previousUserMsg);
-    
+
     if (detection.isProactive) {
       actions.push({
         type: detection.type,
@@ -167,7 +167,7 @@ export function calculateProactiveMetrics(actions, totalMessages = 0) {
   for (const action of actions) {
     // Count by type
     byType[action.type] = (byType[action.type] || 0) + 1;
-    
+
     // Count by value
     if (byValue[action.value] !== undefined) {
       byValue[action.value]++;
@@ -186,7 +186,7 @@ export function calculateProactiveMetrics(actions, totalMessages = 0) {
 
   return {
     totalActions: actions.length,
-    proactiveRate: totalMessages > 0 
+    proactiveRate: totalMessages > 0
       ? Math.round((actions.length / totalMessages) * 100)
       : 0,
     byType,

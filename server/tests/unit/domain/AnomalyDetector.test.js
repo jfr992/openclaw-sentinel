@@ -34,7 +34,7 @@ describe('AnomalyDetector', () => {
       const hour1 = new Date(now.setHours(10, 0, 0, 0))
       const hour2 = new Date(now.setHours(10, 30, 0, 0))
       const hour3 = new Date(now.setHours(14, 0, 0, 0))
-      
+
       const calls = [
         { name: 'exec', timestamp: hour1.toISOString() },
         { name: 'exec', timestamp: hour2.toISOString() },
@@ -77,7 +77,7 @@ describe('AnomalyDetector', () => {
         name: 'exec',
         timestamp: new Date().toISOString()
       }))
-      
+
       const anomalies = detectAnomalies(currentCalls, baseline, { burstThreshold: 3 })
       expect(anomalies.some(a => a.type === ANOMALY_TYPES.BURST_ACTIVITY)).toBe(true)
     })
@@ -86,7 +86,7 @@ describe('AnomalyDetector', () => {
       const currentCalls = [
         { name: 'newTool', timestamp: new Date().toISOString() }
       ]
-      
+
       const anomalies = detectAnomalies(currentCalls, baseline)
       const newToolAnomaly = anomalies.find(a => a.type === ANOMALY_TYPES.NEW_TOOL)
       expect(newToolAnomaly).toBeDefined()
@@ -97,7 +97,7 @@ describe('AnomalyDetector', () => {
       const currentCalls = [
         { name: 'exec', timestamp: new Date().toISOString() }
       ]
-      
+
       const anomalies = detectAnomalies(currentCalls, baseline)
       expect(anomalies.some(a => a.type === ANOMALY_TYPES.NEW_TOOL)).toBe(false)
     })
@@ -108,7 +108,7 @@ describe('AnomalyDetector', () => {
         name: 'exec',
         timestamp: new Date(baseTime.getTime() + i * 100).toISOString() // 100ms apart
       }))
-      
+
       const anomalies = detectAnomalies(currentCalls, baseline, { rapidSuccessionMs: 500 })
       expect(anomalies.some(a => a.type === ANOMALY_TYPES.RAPID_SUCCESSION)).toBe(true)
     })
@@ -131,7 +131,7 @@ describe('AnomalyDetector', () => {
         name: 'exec',
         timestamp: offHoursTime.toISOString()
       }))
-      
+
       const anomalies = detectAnomalies(currentCalls, daytimeBaseline, {
         offHoursStart: 23,
         offHoursEnd: 6

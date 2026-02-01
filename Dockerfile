@@ -17,13 +17,16 @@ FROM node:22.13-alpine3.21 AS deps
 
 WORKDIR /app
 
+# Install build tools for native modules (better-sqlite3)
+RUN apk add --no-cache python3 make g++
+
 # Install dependencies only (better caching)
 COPY package*.json ./
 COPY server/package*.json ./server/
 
-# Install all dependencies (including dev for build)
-RUN npm ci --ignore-scripts && \
-    cd server && npm ci --ignore-scripts
+# Install all dependencies (build native modules)
+RUN npm ci && \
+    cd server && npm ci
 
 # -----------------------------------------------------------------------------
 # Stage 2: Builder
@@ -81,6 +84,8 @@ USER sentinel
 # Environment
 ENV NODE_ENV=production \
     PORT=5056 \
+    # Docker needs 0.0.0.0 for port mapping; native installs default to 127.0.0.1
+    BIND_ADDRESS=0.0.0.0 \
     # Security: Disable npm update checks
     NPM_CONFIG_UPDATE_NOTIFIER=false \
     # Security: Don't allow changing user at runtime
@@ -119,7 +124,8 @@ COPY --from=builder --chown=65532:65532 /app/node_modules ./node_modules
 COPY --from=builder --chown=65532:65532 /app/package.json ./
 
 ENV NODE_ENV=production \
-    PORT=5056
+    PORT=5056 \
+    BIND_ADDRESS=0.0.0.0
 
 EXPOSE 5056
 

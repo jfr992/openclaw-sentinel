@@ -27,13 +27,13 @@ export default function TokenChart({ data }) {
               <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <XAxis 
-            dataKey="date" 
+          <XAxis
+            dataKey="date"
             axisLine={false}
             tickLine={false}
             tick={{ fill: '#71717a', fontSize: 10 }}
           />
-          <YAxis 
+          <YAxis
             axisLine={false}
             tickLine={false}
             tick={{ fill: '#71717a', fontSize: 10 }}

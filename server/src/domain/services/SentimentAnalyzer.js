@@ -16,14 +16,14 @@ const POSITIVE_PATTERNS = [
   { pattern: /\b(great job|well done|nicely done|good job)\b/i, weight: 1.0 },
   { pattern: /\bthank(s| you)\b/i, weight: 0.7 },
   { pattern: /\b(exactly|precisely) (what i|right)\b/i, weight: 0.9 },
-  
+
   // Moderate positive
   { pattern: /\b(good|nice|cool|neat|sweet)\b/i, weight: 0.5 },
   { pattern: /\b(works?|working)\b/i, weight: 0.3 },
   { pattern: /\b(yes|yeah|yep|yup)\b/i, weight: 0.3 },
   { pattern: /\bok\b/i, weight: 0.2 },
   { pattern: /\b(got it|understood)\b/i, weight: 0.2 },
-  
+
   // Emoji positive
   { pattern: /[👍👏🙏💪🎉✅✓☑️💯🔥❤️😊😄🤩👌]/u, weight: 0.8 },
   { pattern: /:\)|:\-\)|:D|:P/i, weight: 0.5 },
@@ -36,22 +36,23 @@ const NEGATIVE_PATTERNS = [
   { pattern: /\b(doesn'?t|didn'?t|won'?t|can'?t) (work|run|compile|load)\b/i, weight: 1.0 },
   { pattern: /\bthat'?s? not (right|correct|what i)\b/i, weight: 1.0 },
   { pattern: /\btry again\b/i, weight: 0.8 },
-  
+
   // Moderate negative
   { pattern: /\bno\b/i, weight: 0.4 },
   { pattern: /\bnot (quite|exactly|really)\b/i, weight: 0.6 },
   { pattern: /\bstill (not|doesn'?t|broken)\b/i, weight: 0.9 },
   { pattern: /\b(ugh|argh|hmm)\b/i, weight: 0.5 },
   { pattern: /\bwhy (is|does|didn'?t)\b/i, weight: 0.3 },
-  
-  // Frustration signals
-  { pattern: /\?{2,}/i, weight: 0.4 }, // Multiple question marks
+
+  // Frustration signals (3+ question marks to avoid code false positives like ??)
+  { pattern: /\?{3,}/i, weight: 0.5 }, // Multiple question marks (frustration)
   { pattern: /!{2,}/i, weight: 0.3 }, // Multiple exclamation marks
   { pattern: /\b(again|already told you|i said)\b/i, weight: 0.7 },
-  
-  // Emoji negative
+
+  // Emoji negative (standalone only, not in code/URLs)
   { pattern: /[👎😞😤😡🙄❌✗✘]/u, weight: 0.8 },
-  { pattern: /:\(|:\-\(|:\/|:\-\//i, weight: 0.5 },
+  { pattern: /(?:^|\s):\((?:\s|$)/i, weight: 0.5 },
+  { pattern: /(?:^|\s):-\((?:\s|$)/i, weight: 0.5 },
 ]
 
 /**
@@ -178,7 +179,7 @@ export function analyzeConversation(messages) {
     trend,
     distribution,
     totalMessages: messages.length,
-    recentSentiment: recentScore > 0.3 ? SENTIMENT.POSITIVE : 
+    recentSentiment: recentScore > 0.3 ? SENTIMENT.POSITIVE :
                       recentScore < -0.3 ? SENTIMENT.NEGATIVE : SENTIMENT.NEUTRAL,
     recentScore: Math.round(recentScore * 100) / 100,
     satisfactionRate: Math.round((distribution.positive / messages.length) * 100),
@@ -218,19 +219,27 @@ function calculateTrend(analyses) {
 export function calculateFeedbackScore(analysis) {
   if (!analysis || analysis.totalMessages === 0) return 50 // Neutral default
 
-  // Base score from satisfaction rate
-  let score = analysis.satisfactionRate
+  const distribution = analysis.distribution || { positive: 0, negative: 0, neutral: 0 }
+  const engaged = distribution.positive + distribution.negative
+
+  // If most messages are neutral, that's actually fine - technical conversations are terse
+  if (engaged === 0) return 60 // Neutral default when no clear signals
+
+  // Base score: 50 (neutral) + weighted positive/negative ratio
+  // Example: 182 pos, 216 neg → ratio = (182-216)/(182+216) = -0.085 → 50 + (-8.5) = 41.5
+  const sentimentRatio = (distribution.positive - distribution.negative) / engaged
+  let score = 50 + (sentimentRatio * 40) // Scale to ±40 points
 
   // Adjust for trend
-  if (analysis.trend === 'improving') score += 10
-  if (analysis.trend === 'declining') score -= 10
+  if (analysis.trend === 'improving') score += 8
+  if (analysis.trend === 'declining') score -= 8
 
   // Adjust for recent sentiment
   if (analysis.recentSentiment === SENTIMENT.POSITIVE) score += 5
   if (analysis.recentSentiment === SENTIMENT.NEGATIVE) score -= 5
 
-  // Penalize high frustration
-  if (analysis.frustrationRate > 30) score -= 15
+  // Bonus for low frustration rate
+  if (analysis.frustrationRate < 10) score += 5
 
   return Math.max(0, Math.min(100, Math.round(score)))
 }

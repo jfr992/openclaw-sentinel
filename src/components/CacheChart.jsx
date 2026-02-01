@@ -45,16 +45,16 @@ export default function CacheChart({ cacheRead, totalInput }) {
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
           </Pie>
-          <Tooltip 
+          <Tooltip
             formatter={(value) => formatNumber(value) + ' tokens'}
-            contentStyle={{ 
-              background: 'var(--bg-card)', 
+            contentStyle={{
+              background: 'var(--bg-card)',
               border: '1px solid var(--border)',
               borderRadius: '8px',
               fontSize: '12px'
             }}
           />
-          <Legend 
+          <Legend
             verticalAlign="bottom"
             iconType="circle"
             iconSize={8}

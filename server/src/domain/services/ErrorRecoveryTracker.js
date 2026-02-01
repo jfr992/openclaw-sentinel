@@ -1,6 +1,6 @@
 /**
  * ErrorRecoveryTracker - Tracks how quickly and effectively errors are recovered
- * 
+ *
  * Monitors:
  * - Time between error and successful recovery
  * - Recovery strategies used
@@ -66,7 +66,7 @@ export function detectError(text) {
       const match = text.match(pattern);
       const startIdx = match ? match.index : 0;
       const errorMsg = text.slice(startIdx, startIdx + 100);
-      
+
       return {
         isError: true,
         type,
@@ -129,7 +129,7 @@ export function parseRecoveryEvents(messages) {
     const timestamp = msg.timestamp || 0;
 
     const error = detectError(content);
-    
+
     if (error.isError) {
       // Save pending error if not recovered
       if (pendingError && !pendingError.recovered) {
@@ -139,7 +139,7 @@ export function parseRecoveryEvents(messages) {
           recovered: false
         });
       }
-      
+
       pendingError = {
         errorType: error.type,
         errorMessage: error.message,
@@ -153,7 +153,7 @@ export function parseRecoveryEvents(messages) {
       if (recovery.isRecovery) {
         pendingError.strategy = recovery.strategy;
       }
-      
+
       // Check for success
       if (detectSuccess(content)) {
         events.push({
@@ -206,12 +206,12 @@ export function calculateRecoveryMetrics(events) {
 
   const recovered = events.filter(e => e.recovered);
   const unrecovered = events.filter(e => !e.recovered);
-  
+
   // Recovery times (only for recovered events with timing)
   const recoveryTimes = recovered
     .filter(e => e.recoveryTimeMs !== null)
     .map(e => e.recoveryTimeMs);
-  
+
   const avgRecoveryTime = recoveryTimes.length > 0
     ? recoveryTimes.reduce((a, b) => a + b, 0) / recoveryTimes.length
     : 0;

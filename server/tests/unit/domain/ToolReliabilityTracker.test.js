@@ -15,7 +15,7 @@ describe('ToolReliabilityTracker', () => {
           { name: 'read', error: 'not found' }
         ]
       };
-      
+
       const calls = parseToolCalls(message);
       expect(calls).toHaveLength(2);
       expect(calls[0]).toEqual({ tool: 'exec', success: true, error: null, duration: null });

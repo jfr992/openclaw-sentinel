@@ -45,8 +45,8 @@ export default function ExposurePanel({ exposure }) {
           </h4>
           <div className="space-y-1 max-h-32 overflow-y-auto">
             {exposure.sensitiveAccess.map((access, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 className="flex items-center justify-between py-1 px-2 rounded bg-red-500/5 border border-red-500/20"
               >
                 <code className="text-xs text-red-400 truncate flex-1">
@@ -84,8 +84,8 @@ export default function ExposurePanel({ exposure }) {
       )}
 
       {/* Empty state */}
-      {!exposure.topDestinations?.length && 
-       !exposure.sensitiveAccess?.length && 
+      {!exposure.topDestinations?.length &&
+       !exposure.sensitiveAccess?.length &&
        !exposure.externalCalls?.length && (
         <div className="flex flex-col items-center justify-center py-8 text-[var(--text-muted)]">
           <Globe className="w-8 h-8 mb-2 text-green-500" />

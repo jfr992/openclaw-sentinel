@@ -35,7 +35,7 @@ export default function AlertFeed({ alerts, onAcknowledge }) {
     const date = new Date(timestamp)
     const now = new Date()
     const diff = now - date
-    
+
     if (diff < 60000) return 'Just now'
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
@@ -46,7 +46,7 @@ export default function AlertFeed({ alerts, onAcknowledge }) {
     <div className="space-y-2 max-h-80 overflow-y-auto">
       {alerts.map((alert) => {
         const badge = getLevelBadge(alert.level)
-        
+
         return (
           <div
             key={alert.id}
@@ -64,11 +64,11 @@ export default function AlertFeed({ alerts, onAcknowledge }) {
                     {alert.type?.replace(/_/g, ' ')}
                   </span>
                 </div>
-                
+
                 <p className="text-sm text-[var(--text-secondary)] truncate">
                   {alert.description}
                 </p>
-                
+
                 <div className="flex items-center gap-2 mt-1">
                   <Clock className="w-3 h-3 text-[var(--text-muted)]" />
                   <span className="text-xs text-[var(--text-muted)]">
@@ -81,7 +81,7 @@ export default function AlertFeed({ alerts, onAcknowledge }) {
                   )}
                 </div>
               </div>
-              
+
               {!alert.acknowledged && (
                 <button
                   onClick={() => onAcknowledge(alert.id)}

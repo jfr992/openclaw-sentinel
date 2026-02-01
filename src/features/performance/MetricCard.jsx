@@ -22,10 +22,10 @@ const STATUS_COLORS = {
   valuable: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/30',
 }
 
-export default function MetricCard({ 
-  title, 
-  icon: Icon, 
-  value, 
+export default function MetricCard({
+  title,
+  icon: Icon,
+  value,
   unit = '',
   subValue,
   subLabel,
@@ -34,17 +34,17 @@ export default function MetricCard({
   onClick
 }) {
   const statusColor = STATUS_COLORS[status] || STATUS_COLORS.unknown
-  
-  const TrendIcon = trend === 'increasing' ? TrendingUp 
-    : trend === 'decreasing' ? TrendingDown 
+
+  const TrendIcon = trend === 'increasing' ? TrendingUp
+    : trend === 'decreasing' ? TrendingDown
     : Minus
-  
-  const trendColor = trend === 'increasing' ? 'text-emerald-400' 
-    : trend === 'decreasing' ? 'text-red-400' 
+
+  const trendColor = trend === 'increasing' ? 'text-emerald-400'
+    : trend === 'decreasing' ? 'text-red-400'
     : 'text-gray-500'
 
   return (
-    <div 
+    <div
       className={`p-4 rounded-lg border ${statusColor} cursor-pointer hover:scale-[1.02] transition-transform`}
       onClick={onClick}
     >
@@ -57,18 +57,18 @@ export default function MetricCard({
           <TrendIcon className={`w-4 h-4 ${trendColor}`} />
         )}
       </div>
-      
+
       <div className="flex items-baseline gap-1">
         <span className="text-2xl font-bold">{value}</span>
         {unit && <span className="text-sm text-gray-400">{unit}</span>}
       </div>
-      
+
       {subValue !== undefined && (
         <div className="mt-1 text-xs text-gray-500">
           {subLabel}: <span className="text-gray-400">{subValue}</span>
         </div>
       )}
-      
+
       <div className="mt-2">
         <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor}`}>
           {status}

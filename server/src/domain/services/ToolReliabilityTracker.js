@@ -1,6 +1,6 @@
 /**
  * ToolReliabilityTracker - Tracks tool success/failure rates
- * 
+ *
  * Monitors:
  * - Which tools succeed vs fail
  * - Error patterns by tool
@@ -24,9 +24,9 @@ const KNOWN_TOOLS = [
  */
 export function parseToolCalls(message) {
   const calls = [];
-  
+
   if (!message) return calls;
-  
+
   // Handle OpenClaw format: content array with type: "toolCall"
   if (Array.isArray(message.content)) {
     for (const item of message.content) {
@@ -40,7 +40,7 @@ export function parseToolCalls(message) {
       }
       // Check for tool errors in toolResult
       if (item.type === 'toolResult' || item.type === 'tool_result') {
-        const hasError = item.error || 
+        const hasError = item.error ||
           (typeof item.content === 'string' && /error|failed|denied|ENOENT/i.test(item.content));
         if (hasError && item.toolCallId) {
           calls.push({
@@ -53,7 +53,7 @@ export function parseToolCalls(message) {
       }
     }
   }
-  
+
   // Handle structured tool_calls array (fallback for other formats)
   if (Array.isArray(message.tool_calls)) {
     for (const call of message.tool_calls) {
@@ -65,7 +65,7 @@ export function parseToolCalls(message) {
       });
     }
   }
-  
+
   // Handle tool_results in content string
   if (message.content && typeof message.content === 'string') {
     // Detect error patterns in tool output
@@ -79,7 +79,7 @@ export function parseToolCalls(message) {
       { pattern: /timeout/i, tool: 'unknown' },
       { pattern: /Connection refused/i, tool: 'unknown' },
     ];
-    
+
     for (const { pattern, tool } of errorPatterns) {
       if (pattern.test(message.content)) {
         calls.push({
@@ -89,14 +89,14 @@ export function parseToolCalls(message) {
         });
       }
     }
-    
+
     // Detect success patterns
     const successPatterns = [
       { pattern: /Successfully wrote/i, tool: 'write' },
       { pattern: /Successfully replaced/i, tool: 'edit' },
       { pattern: /Process exited with code 0/i, tool: 'exec' },
     ];
-    
+
     for (const { pattern, tool } of successPatterns) {
       if (pattern.test(message.content)) {
         calls.push({
@@ -106,7 +106,7 @@ export function parseToolCalls(message) {
       }
     }
   }
-  
+
   return calls;
 }
 
@@ -118,7 +118,7 @@ export function parseToolCalls(message) {
  */
 export function isRetry(history, tool) {
   if (!Array.isArray(history) || history.length === 0) return false;
-  
+
   // Check last 3 calls for a failed call of the same tool
   const recent = history.slice(-3);
   return recent.some(call => call.tool === tool && !call.success);
@@ -145,13 +145,13 @@ export function calculateReliabilityMetrics(calls) {
 
   const byTool = {};
   let retries = 0;
-  
+
   // Track call history for retry detection
   const history = [];
-  
+
   for (const call of calls) {
     const tool = call.tool || 'unknown';
-    
+
     if (!byTool[tool]) {
       byTool[tool] = {
         total: 0,
@@ -161,9 +161,9 @@ export function calculateReliabilityMetrics(calls) {
         retries: 0
       };
     }
-    
+
     byTool[tool].total++;
-    
+
     if (call.success) {
       byTool[tool].success++;
     } else {
@@ -172,12 +172,12 @@ export function calculateReliabilityMetrics(calls) {
         byTool[tool].errors.push(call.error);
       }
     }
-    
+
     if (isRetry(history, tool)) {
       byTool[tool].retries++;
       retries++;
     }
-    
+
     history.push(call);
   }
 
@@ -185,7 +185,7 @@ export function calculateReliabilityMetrics(calls) {
   const totalCalls = calls.length;
   const totalSuccess = calls.filter(c => c.success).length;
   const totalFailures = totalCalls - totalSuccess;
-  
+
   // Format byTool with rates
   const formattedByTool = {};
   for (const [tool, stats] of Object.entries(byTool)) {
@@ -193,7 +193,7 @@ export function calculateReliabilityMetrics(calls) {
       total: stats.total,
       success: stats.success,
       failures: stats.failures,
-      successRate: stats.total > 0 
+      successRate: stats.total > 0
         ? Math.round((stats.success / stats.total) * 100)
         : 100,
       retryRate: stats.total > 0
@@ -202,38 +202,38 @@ export function calculateReliabilityMetrics(calls) {
       commonErrors: [...new Set(stats.errors)].slice(0, 3)
     };
   }
-  
+
   // Sort for rankings
   const toolList = Object.entries(formattedByTool);
-  
+
   const mostUsed = toolList
     .sort((a, b) => b[1].total - a[1].total)
     .slice(0, 5)
     .map(([tool, stats]) => ({ tool, count: stats.total }));
-  
+
   const leastReliable = toolList
     .filter(([_, stats]) => stats.total >= 3) // At least 3 calls
     .sort((a, b) => a[1].successRate - b[1].successRate)
     .slice(0, 5)
-    .map(([tool, stats]) => ({ 
-      tool, 
+    .map(([tool, stats]) => ({
+      tool,
       successRate: stats.successRate,
       failures: stats.failures
     }));
-  
+
   const topFailures = toolList
     .sort((a, b) => b[1].failures - a[1].failures)
     .slice(0, 5)
     .filter(([_, stats]) => stats.failures > 0)
-    .map(([tool, stats]) => ({ 
-      tool, 
+    .map(([tool, stats]) => ({
+      tool,
       failures: stats.failures,
       commonErrors: stats.commonErrors
     }));
 
   return {
     totalCalls,
-    successRate: totalCalls > 0 
+    successRate: totalCalls > 0
       ? Math.round((totalSuccess / totalCalls) * 100)
       : 100,
     failureRate: totalCalls > 0
@@ -256,7 +256,7 @@ export function calculateReliabilityMetrics(calls) {
  */
 export function getHealthStatus(metrics) {
   if (!metrics || metrics.totalCalls === 0) return 'healthy';
-  
+
   if (metrics.successRate >= 95) return 'healthy';
   if (metrics.successRate >= 80) return 'degraded';
   return 'unhealthy';
