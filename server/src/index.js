@@ -12,6 +12,7 @@ import fs from 'fs'
 
 import securityRoutes, { alertStore } from './interfaces/http/routes/security.js'
 import insightsRoutes from './interfaces/http/routes/insights.js'
+import performanceRoutes from './interfaces/http/routes/performance.js'
 import { aggregateUsage } from './domain/services/UsageCalculator.js'
 import { scoreToolCall, RISK_LEVELS } from './domain/services/RiskScorer.js'
 
@@ -267,6 +268,9 @@ app.use('/api/security', securityRoutes)
 
 // Insights routes (self-correction, sentiment)
 app.use('/api/insights', insightsRoutes)
+
+// Performance routes (tasks, latency, tools, memory, proactive, recovery)
+app.use('/api/performance', performanceRoutes)
 
 // ============================================
 // WebSocket: Real-time Security Alerts
