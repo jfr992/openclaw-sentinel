@@ -56,7 +56,7 @@ export default function Sidebar({ activeView, onViewChange, onOpenSettings, onOp
       {/* Logo */}
       <div
         className="w-12 h-12 rounded-xl bg-gradient-to-br from-threat-600 to-threat-800 flex items-center justify-center mb-8 glow-red cursor-pointer hover:scale-105 transition-transform"
-        title="MoltBot Guardian"
+        title="OpenClaw Sentinel"
       >
         <CrabShieldLogo />
       </div>

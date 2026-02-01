@@ -1,6 +1,6 @@
 /**
  * Simple Express server to serve session data from JSONL files
- * Same approach as MoltBot Guardian's /api/usage endpoint
+ * Same approach as OpenClaw Sentinel's /api/usage endpoint
  */
 import express from 'express'
 import { createServer as createViteServer } from 'vite'
@@ -117,7 +117,7 @@ const JAEGER_URL = process.env.JAEGER_URL || 'http://localhost:16686'
 
 app.get('/api/traces', async (req, res) => {
   try {
-    const { service = 'cangrejo-memory', limit = 20 } = req.query
+    const { service = 'openclaw-memory', limit = 20 } = req.query
     const url = `${JAEGER_URL}/api/traces?service=${service}&limit=${limit}`
     const response = await fetch(url)
     if (!response.ok) throw new Error(`Jaeger returned ${response.status}`)

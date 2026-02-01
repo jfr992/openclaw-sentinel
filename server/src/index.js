@@ -1,5 +1,5 @@
 /**
- * Cangrejo Monitor Server
+ * OpenClaw Sentinel Server
  * Clean Architecture entry point
  */
 import express from 'express'
@@ -623,7 +623,8 @@ gatewayClient.connect()
 const clientDist = path.join(process.cwd(), 'dist')
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist))
-  app.get('/{*splat}', (req, res) => {
+  // Express 5 requires named params for wildcards
+  app.get('/{*path}', (req, res) => {
     res.sendFile(path.join(clientDist, 'index.html'))
   })
 }
@@ -646,7 +647,7 @@ function getLocalIP() {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`
-🦀 Don Cangrejo Monitor
+🦞 OpenClaw Sentinel
    Local:   http://localhost:${PORT}
    Network: http://${getLocalIP()}:${PORT}
    

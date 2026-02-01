@@ -1,8 +1,8 @@
 services:
-  # OTEL Collector - receives traces from cangrejo services
+  # OTEL Collector - receives traces from OpenClaw Sentinel services
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
-    container_name: cangrejo-otel-collector
+    container_name: sentinel-otel-collector
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
@@ -15,7 +15,7 @@ services:
   # Jaeger - trace visualization
   jaeger:
     image: jaegertracing/all-in-one:latest
-    container_name: cangrejo-jaeger
+    container_name: sentinel-jaeger
     environment:
       - COLLECTOR_OTLP_ENABLED=true
     ports:
@@ -26,7 +26,7 @@ services:
   # Prometheus - metrics storage
   prometheus:
     image: prom/prometheus:latest
-    container_name: cangrejo-prometheus
+    container_name: sentinel-prometheus
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus

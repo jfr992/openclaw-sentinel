@@ -28,7 +28,7 @@ export class OpenClawGatewayClient extends EventEmitter {
     this.url = opts.url || process.env.OPENCLAW_GATEWAY_URL || 'ws://127.0.0.1:18789'
     this.token = opts.token || process.env.OPENCLAW_GATEWAY_TOKEN || null
     this.clientId = opts.clientId || 'openclaw-probe'
-    this.clientName = opts.clientName || 'Cangrejo Monitor'
+    this.clientName = opts.clientName || 'OpenClaw Sentinel'
     
     this.ws = null
     this.connected = false
@@ -188,7 +188,7 @@ export class OpenClawGatewayClient extends EventEmitter {
       permissions: {},
       auth: this.token ? { token: this.token } : undefined,
       locale: 'en-US',
-      userAgent: `cangrejo-monitor/0.1.0`
+      userAgent: `openclaw-sentinel/1.0.1`
     })
   }
 

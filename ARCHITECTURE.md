@@ -1,4 +1,4 @@
-# 🦀 Don Cangrejo Monitor — Architecture
+# 🦞 OpenClaw Sentinel — Architecture
 
 ## Design Principles
 
@@ -13,7 +13,7 @@
 ## Directory Structure
 
 ```
-cangrejo-monitor/
+openclaw-sentinel/
 ├── server/                    # Backend (Node.js)
 │   ├── src/
 │   │   ├── domain/            # Core business logic (ZERO deps)

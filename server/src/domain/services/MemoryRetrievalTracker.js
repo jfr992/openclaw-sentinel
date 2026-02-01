@@ -12,7 +12,7 @@
 const MEMORY_QUERY_PATTERNS = [
   /curl.*5057\/query/i,
   /localhost:5057/i,
-  /cangrejo-memory/i,
+  /openclaw-memory/i,
   /vector.*search/i,
   /semantic.*search/i,
   /query.*memory/i,

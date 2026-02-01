@@ -1,4 +1,4 @@
-# Prometheus Configuration for MoltBot Guardian
+# Prometheus Configuration for OpenClaw Sentinel
 
 global:
   scrape_interval: 15s
@@ -6,12 +6,12 @@ global:
 
 scrape_configs:
   # Scrape OTEL Collector's Prometheus exporter
-  - job_name: 'moltbot-guardian'
+  - job_name: 'openclaw-sentinel'
     static_configs:
       - targets: ['otel-collector:8889']
     metric_relabel_configs:
       - source_labels: [__name__]
-        regex: 'moltbot_.*'
+        regex: 'sentinel_.*'
         action: keep
 
   # OTEL Collector internal metrics

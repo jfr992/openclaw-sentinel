@@ -6,17 +6,17 @@
 #   docker-compose -f docker-compose.yml -f docker-compose.otel.yaml up -d
 
 services:
-  guardian:
+  sentinel:
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
-      - OTEL_SERVICE_NAME=moltbot-guardian
+      - OTEL_SERVICE_NAME=openclaw-sentinel
       - ENVIRONMENT=production
     depends_on:
       - otel-collector
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.96.0
-    container_name: moltbot-otel
+    container_name: sentinel-otel
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
@@ -29,7 +29,7 @@ services:
 
   prometheus:
     image: prom/prometheus:v2.50.1
-    container_name: moltbot-prometheus
+    container_name: sentinel-prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -45,9 +45,9 @@ services:
 
   grafana:
     image: grafana/grafana:10.4.0
-    container_name: moltbot-grafana
+    container_name: sentinel-grafana
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-guardian}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-sentinel}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer

@@ -1,9 +1,9 @@
-# OpenTelemetry Collector Configuration for Clawdbot Metrics
+# OpenTelemetry Collector Configuration for OpenClaw Metrics
 #
-# This collector receives metrics/traces from Clawdbot and exports
-# to Prometheus/Grafana for visualization in Guardian dashboards.
+# This collector receives metrics/traces from OpenClaw and exports
+# to Prometheus/Grafana for visualization in Sentinel dashboards.
 #
-# Clawdbot publishes: traces, metrics, logs (tokens, costs, tool calls, etc.)
+# OpenClaw publishes: traces, metrics, logs (tokens, costs, tool calls, etc.)
 
 receivers:
   otlp:
@@ -37,9 +37,9 @@ exporters:
   # Prometheus metrics endpoint
   prometheus:
     endpoint: 0.0.0.0:8889
-    namespace: moltbot
+    namespace: sentinel
     const_labels:
-      service: guardian
+      service: sentinel
 
   # Jaeger for traces (optional)
   # jaeger:

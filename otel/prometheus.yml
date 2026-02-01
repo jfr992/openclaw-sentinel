@@ -8,14 +8,14 @@ scrape_configs:
     static_configs:
       - targets: ['otel-collector:8889']  # Internal port unchanged
 
-  # Scrape cangrejo-monitor (when instrumented)
-  - job_name: 'cangrejo-monitor'
+  # Scrape OpenClaw Sentinel (when instrumented)
+  - job_name: 'openclaw-sentinel'
     static_configs:
-      - targets: ['host.docker.internal:5055']
+      - targets: ['host.docker.internal:5056']
     metrics_path: '/metrics'
 
-  # Scrape cangrejo-memory (when instrumented)
-  - job_name: 'cangrejo-memory'
+  # Scrape OpenClaw Memory (when instrumented)
+  - job_name: 'openclaw-memory'
     static_configs:
       - targets: ['host.docker.internal:5057']
     metrics_path: '/metrics'

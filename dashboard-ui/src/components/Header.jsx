@@ -102,7 +102,7 @@ export default function Header({ alertCount = 0 }) {
         </div>
 
         <div>
-          <h1 className="header-title">MOLTBOT GUARDIAN</h1>
+          <h1 className="header-title">OPENCLAW SENTINEL</h1>
           <p className="header-subtitle mt-1">Security Dashboard for AI Operations</p>
         </div>
       </div>
@@ -115,7 +115,7 @@ export default function Header({ alertCount = 0 }) {
               ? 'bg-neon-cyan/10 border-neon-cyan/30'
               : 'bg-shell-800 border-shell-600'
           }`}
-          title={gateway.connected ? 'Connected to Clawdbot gateway' : 'Gateway disconnected - no live events'}
+          title={gateway.connected ? 'Connected to OpenClaw gateway' : 'Gateway disconnected - no live events'}
         >
           {gateway.connected ? (
             <Wifi className="w-4 h-4 text-neon-cyan" />
