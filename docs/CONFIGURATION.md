@@ -10,6 +10,10 @@
 | `DATA_DIR` | `./data` | Path for SQLite database |
 | `OPENCLAW_GATEWAY_URL` | `ws://127.0.0.1:18789` | Gateway WebSocket URL |
 | `OPENCLAW_GATEWAY_TOKEN` | (from config) | Gateway authentication token |
+| `SYNC_INTERVAL_MS` | `300000` | Metrics sync interval in milliseconds (5 min) |
+| `OTEL_ENABLED` | `false` | Enable OpenTelemetry instrumentation |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318` | OTLP endpoint (requires `OTEL_ENABLED=true`) |
+| `OTEL_SERVICE_NAME` | `openclaw-sentinel` | Service name for telemetry |
 
 ## Docker Configuration
 
@@ -44,6 +48,29 @@ docker run -d \
   ghcr.io/jfr992/openclaw-sentinel:latest
 ```
 
+### With Custom Sync Interval
+```bash
+docker run -d \
+  --name sentinel \
+  -p 5056:5056 \
+  -v ~/.openclaw:/data/.openclaw:ro \
+  -v sentinel-data:/app/data \
+  -e SYNC_INTERVAL_MS=60000 \
+  ghcr.io/jfr992/openclaw-sentinel:latest
+```
+
+### With OpenTelemetry
+```bash
+docker run -d \
+  --name sentinel \
+  -p 5056:5056 \
+  -v ~/.openclaw:/data/.openclaw:ro \
+  -v sentinel-data:/app/data \
+  -e OTEL_ENABLED=true \
+  -e OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318 \
+  ghcr.io/jfr992/openclaw-sentinel:latest
+```
+
 ### Docker Compose
 ```yaml
 version: '3.8'
@@ -59,10 +86,26 @@ services:
       - OPENCLAW_DIR=/data/.openclaw
       - DATA_DIR=/app/data
       - OPENCLAW_GATEWAY_URL=ws://host.docker.internal:18789
+      - SYNC_INTERVAL_MS=300000
     restart: unless-stopped
 
 volumes:
   sentinel-data:
+```
+
+## Multi-Agent Support
+
+Sentinel automatically detects multiple agents from the session file paths:
+```
+~/.openclaw/agents/{agent_id}/sessions/*.jsonl
+```
+
+The UI shows an **Agent** dropdown when multiple agents are detected, allowing you to filter metrics by agent.
+
+All metrics API endpoints support the `?agent=` query parameter:
+```bash
+curl http://localhost:5056/api/metrics/query?agent=main
+curl http://localhost:5056/api/metrics/performance?agent=claude
 ```
 
 ## Security Considerations
@@ -102,12 +145,12 @@ metricsStore.rollupOldData(30) // days to keep
 
 ## Sync Intervals
 
-| Operation | Interval | Description |
-|-----------|----------|-------------|
-| Session parse | 30 sec | Re-parse session files |
-| Metrics sync | 5 min | Store metrics to SQLite |
-| UI refresh | 30 sec | Frontend data refresh |
-| Gateway reconnect | Exponential | Auto-reconnect on disconnect |
+| Operation | Interval | Configurable |
+|-----------|----------|--------------|
+| Session parse | 30 sec | No |
+| Metrics sync | 5 min | Yes (`SYNC_INTERVAL_MS`) |
+| UI refresh | 30 sec | No |
+| Gateway reconnect | Exponential | No |
 
 ## Granularity Settings
 
@@ -145,6 +188,11 @@ docker exec sentinel ls -la /app/data/
 ```bash
 docker exec sentinel sqlite3 /app/data/metrics.db \
   "SELECT COUNT(*) FROM usage_metrics"
+```
+
+### Check Agents
+```bash
+curl http://localhost:5056/api/agents
 ```
 
 ### Force Re-sync

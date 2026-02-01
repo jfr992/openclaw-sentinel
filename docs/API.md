@@ -2,6 +2,10 @@
 
 Base URL: `http://localhost:5056`
 
+Interactive documentation available at `/api/docs` (Swagger UI).
+
+---
+
 ## Health & Status
 
 ### GET /api/health
@@ -33,6 +37,21 @@ Check OpenClaw Gateway connection.
 
 ---
 
+## Agents
+
+### GET /api/agents
+List all detected agents.
+
+**Response:**
+```json
+{
+  "agents": ["main", "claude"],
+  "count": 2
+}
+```
+
+---
+
 ## Usage Metrics
 
 ### GET /api/metrics/query
@@ -44,6 +63,7 @@ Query historical usage metrics.
 | start | ISO date | 7 days ago | Start of range |
 | end | ISO date | now | End of range |
 | granularity | string | hour | `5min`, `hour`, or `day` |
+| agent | string | (all) | Filter by agent ID |
 
 **Response:**
 ```json
@@ -67,6 +87,11 @@ Query historical usage metrics.
 
 ### GET /api/metrics/summary
 Quick summary stats for predefined periods.
+
+**Parameters:**
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| agent | string | (all) | Filter by agent ID |
 
 **Response:**
 ```json
@@ -103,7 +128,13 @@ Current performance metrics.
 ### GET /api/metrics/performance
 Query historical performance data.
 
-**Parameters:** Same as `/api/metrics/query`
+**Parameters:**
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| start | ISO date | 7 days ago | Start of range |
+| end | ISO date | now | End of range |
+| granularity | string | hour | `5min`, `hour`, or `day` |
+| agent | string | (all) | Filter by agent ID |
 
 **Response:**
 ```json
@@ -168,7 +199,13 @@ Context health analysis.
 ### GET /api/metrics/insights
 Query historical insights data.
 
-**Parameters:** Same as `/api/metrics/query`
+**Parameters:**
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| start | ISO date | 7 days ago | Start of range |
+| end | ISO date | now | End of range |
+| granularity | string | hour | `5min`, `hour`, or `day` |
+| agent | string | (all) | Filter by agent ID |
 
 ---
 
