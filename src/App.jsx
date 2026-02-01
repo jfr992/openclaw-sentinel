@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Activity, Zap, Database, DollarSign, AlertTriangle, Clock, Cpu, RefreshCw, Shield, BarChart3, Brain, Sparkles } from 'lucide-react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Activity, Zap, Database, DollarSign, AlertTriangle, Clock, Cpu, RefreshCw, Shield, BarChart3, Brain, Sparkles, Calendar } from 'lucide-react'
 import TokenChart from './components/TokenChart'
 import CacheChart from './components/CacheChart'
 import CostChart from './components/CostChart'
@@ -19,6 +19,9 @@ function App() {
   const [lastUpdate, setLastUpdate] = useState(null)
   const [online, setOnline] = useState(false)
   const [riskLevel, setRiskLevel] = useState(0)
+  const [dateRange, setDateRange] = useState(7) // Days: 7, 14, 30, 90, or 'custom'
+  const [customStart, setCustomStart] = useState('')
+  const [customEnd, setCustomEnd] = useState('')
 
   const fetchData = useCallback(async () => {
     try {
@@ -73,6 +76,46 @@ function App() {
   }, [fetchData])
 
   const { metrics, toolCalls, sessions } = data || {}
+
+  // Filter byDay data based on date range
+  const filteredByDay = useMemo(() => {
+    if (!metrics?.byDay) return {}
+    
+    const allDays = Object.keys(metrics.byDay).sort()
+    if (allDays.length === 0) return {}
+    
+    let startDate, endDate
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    if (customStart && customEnd) {
+      startDate = customStart
+      endDate = customEnd
+    } else {
+      endDate = today.toISOString().slice(0, 10)
+      const start = new Date(today)
+      start.setDate(start.getDate() - dateRange + 1)
+      startDate = start.toISOString().slice(0, 10)
+    }
+    
+    const filtered = {}
+    for (const [day, data] of Object.entries(metrics.byDay)) {
+      if (day >= startDate && day <= endDate) {
+        filtered[day] = data
+      }
+    }
+    return filtered
+  }, [metrics?.byDay, dateRange, customStart, customEnd])
+
+  // Calculate totals for selected range
+  const rangeTotals = useMemo(() => {
+    let tokens = 0, cost = 0
+    for (const data of Object.values(filteredByDay)) {
+      tokens += data.tokens || 0
+      cost += data.cost || 0
+    }
+    return { tokens, cost, days: Object.keys(filteredByDay).length }
+  }, [filteredByDay])
 
   // Tab configuration
   const tabs = [
@@ -193,7 +236,7 @@ function App() {
             />
             <MetricCard
               title="Cache Hit"
-              value={`${metrics?.cacheHitRatio || 0}%`}
+              value={`${(parseFloat(metrics?.cacheHitRatio) || 0).toFixed(1)}%`}
               subtitle={`${(metrics?.totalCacheRead || 0).toLocaleString()} cached`}
               icon={Database}
               color={parseFloat(metrics?.cacheHitRatio) > 50 ? 'green' : 'amber'}
@@ -214,6 +257,43 @@ function App() {
             />
           </div>
 
+          {/* Date Range Picker */}
+          <div className="card p-4 mb-4 flex flex-wrap items-center gap-3">
+            <Calendar className="w-4 h-4 text-[var(--text-secondary)]" />
+            <span className="text-sm text-[var(--text-secondary)]">Date Range:</span>
+            {[7, 14, 30, 90].map(days => (
+              <button
+                key={days}
+                onClick={() => { setDateRange(days); setCustomStart(''); setCustomEnd(''); }}
+                className={`px-3 py-1.5 text-xs font-mono rounded border transition-colors ${
+                  dateRange === days && !customStart
+                    ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white'
+                    : 'bg-[var(--bg-tertiary)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)]'
+                }`}
+              >
+                {days}D
+              </button>
+            ))}
+            <div className="flex items-center gap-2 ml-2">
+              <input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="px-2 py-1 text-xs font-mono bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded text-[var(--text-primary)]"
+              />
+              <span className="text-[var(--text-muted)]">→</span>
+              <input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="px-2 py-1 text-xs font-mono bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded text-[var(--text-primary)]"
+              />
+            </div>
+            <span className="text-xs text-[var(--text-muted)] ml-auto">
+              {rangeTotals.days} days • {(rangeTotals.tokens / 1000).toFixed(1)}K tokens • ${rangeTotals.cost.toFixed(2)}
+            </span>
+          </div>
+
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6">
             <div className="card p-4 md:p-6">
@@ -221,7 +301,7 @@ function App() {
                 <Zap className="w-4 h-4 text-[var(--accent-orange)]" />
                 Token Usage by Day
               </h3>
-              <TokenChart data={metrics?.byDay} />
+              <TokenChart data={filteredByDay} />
             </div>
             <div className="card p-4 md:p-6">
               <h3 className="text-xs md:text-sm font-semibold text-[var(--text-secondary)] mb-4 flex items-center gap-2">
@@ -238,7 +318,7 @@ function App() {
                 <DollarSign className="w-4 h-4 text-[var(--accent-green)]" />
                 Cost by Day
               </h3>
-              <CostChart data={metrics?.byDay} />
+              <CostChart data={filteredByDay} />
             </div>
           </div>
 

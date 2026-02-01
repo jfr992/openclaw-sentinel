@@ -16,7 +16,6 @@ export default function CostChart({ data }) {
       fullDate: date
     }))
     .sort((a, b) => a.fullDate.localeCompare(b.fullDate))
-    .slice(-7) // Last 7 days
 
   return (
     <div className="h-48">

@@ -71,8 +71,8 @@ COPY --from=builder --chown=sentinel:sentinel /app/package.json ./
 # Create data directory for baseline storage
 RUN mkdir -p /app/data && chown sentinel:sentinel /app/data
 
-# Security: Remove unnecessary packages and shells
-RUN apk --no-cache add --virtual .run-deps wget && \
+# Add runtime dependencies (wget for healthcheck, sqlite for memory reading)
+RUN apk --no-cache add wget sqlite && \
     rm -rf /var/cache/apk/* /tmp/* /root/.npm /root/.node-gyp
 
 # Switch to non-root user

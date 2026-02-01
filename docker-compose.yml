@@ -82,13 +82,21 @@ networks:
 # =============================================================================
 # Usage:
 # =============================================================================
-# Default (Alpine, includes shell for debugging):
-#   docker compose up -d
+# Default:
+#   OPENCLAW_GATEWAY_TOKEN=xxx docker compose up -d
 #
-# Distroless (smallest, no shell):
+# With OTEL observability stack (optional):
+#   OPENCLAW_GATEWAY_TOKEN=xxx docker compose -f docker-compose.yml -f docker-compose.otel.yaml up -d
+#
+# Distroless (smallest image, no shell):
 #   docker compose build --build-arg target=distroless
 #   docker compose up -d
 #
-# With custom gateway:
-#   OPENCLAW_GATEWAY_TOKEN=xxx docker compose up -d
+# Volumes:
+#   - ~/.openclaw:/data/.openclaw  → Session logs (read-only)
+#   - sentinel-data:/data          → Baseline learning state (persistent)
+#
+# OTEL Stack (optional):
+#   - Prometheus: http://localhost:9090
+#   - Grafana:    http://localhost:3000 (admin/sentinel)
 # =============================================================================

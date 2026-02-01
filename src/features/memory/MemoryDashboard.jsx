@@ -169,6 +169,42 @@ export function MemoryDashboard() {
   const { agents, totals, timestamp } = data || {}
   const mainAgent = agents?.find(a => a.id === 'main')
 
+  // Show unavailable state when memory DBs not found
+  if (data?.unavailable) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Brain className="w-6 h-6 text-[var(--accent-purple)]" />
+          <div>
+            <h2 className="text-lg font-semibold">OpenClaw Memory</h2>
+            <p className="text-xs text-[var(--text-muted)]">Vector search & semantic memory</p>
+          </div>
+        </div>
+        
+        <div className="card p-6 border-[var(--border)] bg-[var(--bg-secondary)]">
+          <div className="flex items-start gap-4">
+            <Database className="w-8 h-8 text-[var(--text-muted)]" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-[var(--text-primary)]">Memory Databases Not Found</h3>
+              <p className="text-sm text-[var(--text-muted)] mt-2">
+                {data.message || 'Could not access OpenClaw memory databases.'}
+              </p>
+              <div className="mt-4 bg-[var(--bg-tertiary)] rounded p-4 font-mono text-xs">
+                <p className="text-[var(--text-muted)]"># In Docker, ensure ~/.openclaw is mounted:</p>
+                <p className="text-[var(--accent-cyan)] mt-1">-v ~/.openclaw:/data/.openclaw:ro</p>
+                <p className="text-[var(--text-muted)] mt-3"># Or run natively:</p>
+                <p className="text-[var(--accent-cyan)]">cd openclaw-sentinel && npm start</p>
+              </div>
+              <p className="text-xs text-[var(--text-muted)] mt-4 italic">
+                Other features (Usage, Security, Insights, Performance) work normally.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -238,12 +274,23 @@ export function MemoryDashboard() {
       {/* Capabilities */}
       <div className="card p-4">
         <h4 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">Search Capabilities</h4>
+        {data?.unavailable ? (
+          <div className="text-sm text-[var(--text-muted)] space-y-2">
+            <p>Memory search requires the OpenClaw CLI on the host.</p>
+            <div className="bg-[var(--bg-tertiary)] rounded p-3 font-mono text-xs">
+              <p className="text-[var(--text-secondary)]"># Install on host (not Docker):</p>
+              <p>npm install -g openclaw</p>
+              <p className="mt-2 text-[var(--text-secondary)]"># Then run Sentinel natively:</p>
+              <p>npm start</p>
+            </div>
+          </div>
+        ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="flex items-center gap-2">
             {totals?.vectorReady ? (
               <CheckCircle2 className="w-4 h-4 text-[var(--accent-green)]" />
             ) : (
-              <AlertCircle className="w-4 h-4 text-[var(--accent-red)]" />
+              <AlertCircle className="w-4 h-4 text-[var(--text-muted)]" />
             )}
             <span className="text-sm">Vector Search (sqlite-vec)</span>
           </div>
@@ -251,7 +298,7 @@ export function MemoryDashboard() {
             {totals?.ftsReady ? (
               <CheckCircle2 className="w-4 h-4 text-[var(--accent-green)]" />
             ) : (
-              <AlertCircle className="w-4 h-4 text-[var(--accent-red)]" />
+              <AlertCircle className="w-4 h-4 text-[var(--text-muted)]" />
             )}
             <span className="text-sm">Full-Text Search (FTS5)</span>
           </div>
@@ -264,6 +311,7 @@ export function MemoryDashboard() {
             <span className="text-sm">Embedding Cache</span>
           </div>
         </div>
+        )}
       </div>
 
       {/* Agent Cards */}
@@ -280,7 +328,11 @@ export function MemoryDashboard() {
       <div className="text-xs text-[var(--text-muted)] text-center">
         Last updated: {timestamp ? new Date(timestamp).toLocaleTimeString() : 'N/A'}
         {' • '}
-        <code className="bg-[var(--bg-secondary)] px-1 rounded">openclaw memory status</code>
+        {data?.source === 'sqlite' ? (
+          <span className="text-[var(--accent-cyan)]">reading from SQLite</span>
+        ) : (
+          <code className="bg-[var(--bg-secondary)] px-1 rounded">openclaw memory status</code>
+        )}
       </div>
     </div>
   )

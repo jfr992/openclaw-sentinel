@@ -260,8 +260,87 @@ app.get('/api/alerts', (req, res) => {
   res.json(alertStore.getRecent(limit))
 })
 
-// OpenClaw Memory Status (calls CLI)
+// OpenClaw Memory Status (reads SQLite directly, falls back to CLI)
 app.get('/api/memory', async (req, res) => {
+  const memoryDir = path.join(openclawDir, 'memory')
+  
+  // Try to read SQLite databases directly (works in Docker with mounted volume)
+  try {
+    const dbFiles = await fs.promises.readdir(memoryDir).catch(() => [])
+    const sqliteFiles = dbFiles.filter(f => f.endsWith('.sqlite'))
+    
+    if (sqliteFiles.length > 0) {
+      const agents = []
+      let totalFiles = 0
+      let totalChunks = 0
+      let totalCache = 0
+      
+      for (const dbFile of sqliteFiles) {
+        const dbPath = path.join(memoryDir, dbFile)
+        const agentId = dbFile.replace('.sqlite', '')
+        
+        try {
+          // Use sqlite3 CLI to query (available in most containers)
+          const { stdout: filesOut } = await execAsync(
+            `sqlite3 "${dbPath}" "SELECT COUNT(*), COALESCE(SUM(size), 0) FROM files" 2>/dev/null`,
+            { timeout: 5000 }
+          ).catch(() => ({ stdout: '0|0' }))
+          
+          const { stdout: chunksOut } = await execAsync(
+            `sqlite3 "${dbPath}" "SELECT COUNT(*) FROM chunks" 2>/dev/null`,
+            { timeout: 5000 }
+          ).catch(() => ({ stdout: '0' }))
+          
+          const { stdout: cacheOut } = await execAsync(
+            `sqlite3 "${dbPath}" "SELECT COUNT(*) FROM embedding_cache" 2>/dev/null`,
+            { timeout: 5000 }
+          ).catch(() => ({ stdout: '0' }))
+          
+          const [fileCount, fileSize] = filesOut.trim().split('|').map(Number)
+          const chunkCount = parseInt(chunksOut.trim()) || 0
+          const cacheCount = parseInt(cacheOut.trim()) || 0
+          
+          totalFiles += fileCount || 0
+          totalChunks += chunkCount
+          totalCache += cacheCount
+          
+          agents.push({
+            id: agentId,
+            files: fileCount || 0,
+            fileSize: fileSize || 0,
+            chunks: chunkCount,
+            cache: { entries: cacheCount },
+            vector: { enabled: chunkCount > 0, available: chunkCount > 0, dims: 1536 },
+            fts: { enabled: true, available: true },
+            sources: [],
+            issues: []
+          })
+        } catch (dbErr) {
+          console.error(`Error reading ${dbFile}:`, dbErr.message)
+        }
+      }
+      
+      if (agents.length > 0) {
+        return res.json({
+          agents,
+          totals: {
+            agents: agents.length,
+            files: totalFiles,
+            chunks: totalChunks,
+            cacheEntries: totalCache,
+            vectorReady: totalChunks > 0,
+            ftsReady: true
+          },
+          timestamp: new Date().toISOString(),
+          source: 'sqlite'
+        })
+      }
+    }
+  } catch (sqliteErr) {
+    console.log('SQLite direct read failed, trying CLI:', sqliteErr.message)
+  }
+  
+  // Fallback: try CLI (works when running natively)
   try {
     const env = {
       ...process.env,
@@ -315,12 +394,23 @@ app.get('/api/memory', async (req, res) => {
       ftsReady: agents.every(a => a.fts.available)
     }
     
-    res.json({ agents, totals, timestamp: new Date().toISOString() })
+    res.json({ agents, totals, timestamp: new Date().toISOString(), source: 'cli' })
   } catch (err) {
     console.error('Memory API error:', err.message)
-    res.status(500).json({ 
-      error: err.message,
-      hint: 'Is openclaw CLI installed and in PATH?'
+    // Return a graceful response for Docker/environments without openclaw CLI
+    res.json({ 
+      agents: [],
+      totals: {
+        agents: 0,
+        files: 0,
+        chunks: 0,
+        cacheEntries: 0,
+        vectorReady: false,
+        ftsReady: false
+      },
+      timestamp: new Date().toISOString(),
+      unavailable: true,
+      message: 'Memory databases not found. Mount ~/.openclaw to /data or run natively.'
     })
   }
 })

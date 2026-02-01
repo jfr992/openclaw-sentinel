@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Brain, MessageCircle, TrendingUp, TrendingDown, Minus, RefreshCw, AlertCircle, CheckCircle, Target, Layers } from 'lucide-react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Brain, MessageCircle, TrendingUp, TrendingDown, Minus, RefreshCw, AlertCircle, CheckCircle, Target, Layers, Calendar, Clock } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 
 export default function InsightsDashboard() {
   const [summary, setSummary] = useState(null)
@@ -8,6 +9,7 @@ export default function InsightsDashboard() {
   const [context, setContext] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [timeRange, setTimeRange] = useState(60) // minutes: 15, 30, 60, 240, 'all'
 
   const fetchData = useCallback(async () => {
     try {
@@ -36,6 +38,44 @@ export default function InsightsDashboard() {
     const interval = setInterval(fetchData, 30000) // Every 30s
     return () => clearInterval(interval)
   }, [fetchData])
+
+  // Filter and process sentiment data based on time range
+  const { recentSentimentData, trendChartData, recentStats } = useMemo(() => {
+    if (!sentiment?.recentDetails) return { recentSentimentData: [], trendChartData: [], recentStats: null }
+    
+    const now = Date.now()
+    const cutoff = timeRange === 'all' ? 0 : now - (timeRange * 60 * 1000)
+    
+    const filtered = sentiment.recentDetails.filter(d => 
+      new Date(d.timestamp).getTime() > cutoff
+    )
+    
+    // Process for trend chart
+    const chartData = filtered.map(d => ({
+      time: new Date(d.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      score: d.score,
+      sentiment: d.sentiment === 'positive' ? 1 : d.sentiment === 'negative' ? -1 : 0
+    })).reverse()
+    
+    // Calculate recent stats
+    const positive = filtered.filter(d => d.sentiment === 'positive').length
+    const negative = filtered.filter(d => d.sentiment === 'negative').length
+    const neutral = filtered.filter(d => d.sentiment === 'neutral').length
+    const total = filtered.length
+    
+    return {
+      recentSentimentData: filtered,
+      trendChartData: chartData,
+      recentStats: total > 0 ? {
+        total,
+        positive,
+        negative,
+        neutral,
+        positiveRate: Math.round((positive / total) * 100),
+        negativeRate: Math.round((negative / total) * 100)
+      } : null
+    }
+  }, [sentiment, timeRange])
 
   if (loading) {
     return (
@@ -66,6 +106,87 @@ export default function InsightsDashboard() {
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Time Range Picker */}
+      <div className="card p-4 flex flex-wrap items-center gap-3">
+        <Clock className="w-4 h-4 text-[var(--text-secondary)]" />
+        <span className="text-sm text-[var(--text-secondary)]">Time Range:</span>
+        {[15, 30, 60, 240].map(mins => (
+          <button
+            key={mins}
+            onClick={() => setTimeRange(mins)}
+            className={`px-3 py-1.5 text-xs font-mono rounded border transition-colors ${
+              timeRange === mins
+                ? 'bg-[var(--accent-purple)] border-[var(--accent-purple)] text-white'
+                : 'bg-[var(--bg-tertiary)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-purple)]'
+            }`}
+          >
+            {mins < 60 ? `${mins}m` : `${mins/60}h`}
+          </button>
+        ))}
+        <button
+          onClick={() => setTimeRange('all')}
+          className={`px-3 py-1.5 text-xs font-mono rounded border transition-colors ${
+            timeRange === 'all'
+              ? 'bg-[var(--accent-purple)] border-[var(--accent-purple)] text-white'
+              : 'bg-[var(--bg-tertiary)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-purple)]'
+          }`}
+        >
+          All
+        </button>
+        {recentStats && (
+          <span className="text-xs text-[var(--text-muted)] ml-auto">
+            {recentStats.total} messages • {recentStats.positiveRate}% positive • {recentStats.negativeRate}% negative
+          </span>
+        )}
+      </div>
+
+      {/* Sentiment Trend Chart */}
+      {trendChartData.length > 0 && (
+        <div className="card p-6">
+          <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-4 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-[var(--accent-cyan)]" />
+            Sentiment Trend ({timeRange === 'all' ? 'All Time' : `Last ${timeRange < 60 ? `${timeRange}m` : `${timeRange/60}h`}`})
+          </h3>
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trendChartData}>
+                <XAxis 
+                  dataKey="time" 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#71717a', fontSize: 10 }}
+                />
+                <YAxis 
+                  domain={[-1, 1]}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#71717a', fontSize: 10 }}
+                  tickFormatter={(v) => v === 1 ? '😊' : v === -1 ? '😞' : '😐'}
+                  width={30}
+                />
+                <ReferenceLine y={0} stroke="#71717a" strokeDasharray="3 3" />
+                <Tooltip
+                  contentStyle={{
+                    background: '#1a1a24',
+                    border: '1px solid #2a2a3a',
+                    borderRadius: '8px',
+                    fontSize: '12px'
+                  }}
+                  formatter={(value) => [value === 1 ? 'Positive' : value === -1 ? 'Negative' : 'Neutral', 'Sentiment']}
+                />
+                <Line
+                  type="stepAfter"
+                  dataKey="sentiment"
+                  stroke="#22d3ee"
+                  strokeWidth={2}
+                  dot={{ fill: '#22d3ee', strokeWidth: 0, r: 3 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="card p-4 border-[var(--accent-red)] bg-red-500/10">
