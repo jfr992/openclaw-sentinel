@@ -62,6 +62,40 @@ Open **http://localhost:5056** in your browser.
 
 ---
 
+## Dashboard Tour
+
+### Usage Tab
+Track token consumption, costs, and cache efficiency.
+
+![Usage Tab](docs/images/01-usage-tab.png)
+
+### Memory Tab
+Monitor vector search and indexed files.
+
+![Memory Tab](docs/images/02-memory-tab.png)
+
+### Performance Tab
+Overall agent performance score with detailed metrics.
+
+![Performance Tab](docs/images/03-performance-tab.png)
+
+### Security Tab
+Risk alerts and suspicious operation monitoring.
+
+![Security Tab](docs/images/04-security-tab.png)
+
+### Insights Tab
+Behavioral analysis: corrections, sentiment, context health.
+
+![Insights Tab](docs/images/05-insights-tab.png)
+
+### API Documentation
+Full OpenAPI 3.0 spec with Swagger UI at `/api/docs`.
+
+![Swagger UI](docs/images/06-swagger-ui.png)
+
+---
+
 ## The Dashboard
 
 ### Header Controls
