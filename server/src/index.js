@@ -141,10 +141,70 @@ async function getUserMessages() {
   )
 }
 
+// Helper to get context data for health tracking
+async function getContextData() {
+  const files = await glob(sessionsPattern)
+  const assistantTexts = []
+  const systemTexts = []
+  const toolCalls = []
+  let totalMessages = 0
+  
+  for (const file of files) {
+    try {
+      const content = fs.readFileSync(file, 'utf-8')
+      const lines = content.trim().split('\n').filter(Boolean)
+      
+      for (const line of lines) {
+        try {
+          const entry = JSON.parse(line)
+          const msg = entry.message || {}
+          totalMessages++
+          
+          // Extract assistant text
+          if (msg.role === 'assistant') {
+            if (typeof msg.content === 'string') {
+              assistantTexts.push(msg.content)
+            } else if (Array.isArray(msg.content)) {
+              const text = msg.content
+                .filter(c => c.type === 'text')
+                .map(c => c.text)
+                .join(' ')
+              if (text) assistantTexts.push(text)
+            }
+          }
+          
+          // Extract system messages
+          if (msg.role === 'system' || entry.type === 'system') {
+            const text = typeof msg.content === 'string' ? msg.content : 
+                        (msg.text || entry.text || '')
+            if (text) systemTexts.push(text)
+          }
+          
+          // Extract tool calls
+          if (Array.isArray(msg.content)) {
+            for (const item of msg.content) {
+              if (item.type === 'toolCall' && item.name) {
+                toolCalls.push({
+                  name: item.name,
+                  arguments: item.arguments || {},
+                  timestamp: entry.timestamp
+                })
+              }
+            }
+          }
+        } catch { /* skip */ }
+      }
+    } catch { /* skip */ }
+  }
+  
+  return { assistantTexts, systemTexts, toolCalls, totalMessages }
+}
+
 // Make helpers available to routes
 app.locals.getRecentToolCalls = getRecentToolCalls
 app.locals.getSessionData = getSessionData
 app.locals.getUserMessages = getUserMessages
+app.locals.getContextData = getContextData
 
 // ============================================
 // API Routes

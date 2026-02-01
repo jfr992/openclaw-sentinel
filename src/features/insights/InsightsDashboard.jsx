@@ -1,24 +1,27 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Brain, MessageCircle, TrendingUp, TrendingDown, Minus, RefreshCw, AlertCircle, CheckCircle, Target } from 'lucide-react'
+import { Brain, MessageCircle, TrendingUp, TrendingDown, Minus, RefreshCw, AlertCircle, CheckCircle, Target, Layers } from 'lucide-react'
 
 export default function InsightsDashboard() {
   const [summary, setSummary] = useState(null)
   const [corrections, setCorrections] = useState(null)
   const [sentiment, setSentiment] = useState(null)
+  const [context, setContext] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   const fetchData = useCallback(async () => {
     try {
-      const [summaryRes, correctionsRes, sentimentRes] = await Promise.all([
+      const [summaryRes, correctionsRes, sentimentRes, contextRes] = await Promise.all([
         fetch('/api/insights/summary'),
         fetch('/api/insights/corrections'),
-        fetch('/api/insights/sentiment')
+        fetch('/api/insights/sentiment'),
+        fetch('/api/insights/context')
       ])
 
       if (summaryRes.ok) setSummary(await summaryRes.json())
       if (correctionsRes.ok) setCorrections(await correctionsRes.json())
       if (sentimentRes.ok) setSentiment(await sentimentRes.json())
+      if (contextRes.ok) setContext(await contextRes.json())
       
       setError(null)
     } catch (err) {
@@ -103,8 +106,8 @@ export default function InsightsDashboard() {
         </div>
       )}
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Three Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Self-Correction */}
         <div className="card p-6">
           <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-4 flex items-center gap-2">
@@ -236,6 +239,77 @@ export default function InsightsDashboard() {
               <div className="p-3 rounded-lg bg-[var(--accent-cyan)]/10 border border-[var(--accent-cyan)]/30">
                 <p className="text-sm text-[var(--accent-cyan)]">
                   💬 {sentiment.recommendation}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Context Health */}
+        <div className="card p-6">
+          <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-4 flex items-center gap-2">
+            <Layers className="w-4 h-4 text-[var(--accent-purple)]" />
+            Context Health
+          </h3>
+          
+          {context && (
+            <div className="space-y-4">
+              {/* Health Score */}
+              <div className="flex items-end gap-4">
+                <span className={`text-5xl font-bold ${
+                  context.healthScore >= 80 ? 'text-[var(--accent-green)]' :
+                  context.healthScore >= 60 ? 'text-[var(--accent-blue)]' :
+                  context.healthScore >= 40 ? 'text-[var(--accent-amber)]' :
+                  'text-[var(--accent-red)]'
+                }`}>
+                  {context.healthScore}
+                </span>
+                <div className="mb-2">
+                  <span className="text-lg">{context.status.emoji}</span>
+                  <span className="text-sm text-[var(--text-muted)] ml-1">{context.status.label}</span>
+                </div>
+              </div>
+              
+              {/* Continuity Rate */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-[var(--text-muted)]">Continuity:</span>
+                <div className="flex-1 h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-[var(--accent-purple)]" 
+                    style={{ width: `${context.continuityRate}%` }}
+                  />
+                </div>
+                <span className="text-sm font-mono">{context.continuityRate}%</span>
+              </div>
+              
+              {/* Events Breakdown */}
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="p-2 rounded bg-[var(--bg-secondary)]">
+                  <span className="text-[var(--text-muted)]">Truncations</span>
+                  <span className={`float-right font-mono ${context.events.truncations > 0 ? 'text-[var(--accent-red)]' : ''}`}>
+                    {context.events.truncations}
+                  </span>
+                </div>
+                <div className="p-2 rounded bg-[var(--bg-secondary)]">
+                  <span className="text-[var(--text-muted)]">Re-asks</span>
+                  <span className={`float-right font-mono ${context.events.reasksCount > 0 ? 'text-[var(--accent-orange)]' : ''}`}>
+                    {context.events.reasksCount}
+                  </span>
+                </div>
+                <div className="p-2 rounded bg-[var(--bg-secondary)]">
+                  <span className="text-[var(--text-muted)]">Confusion</span>
+                  <span className="float-right font-mono">{context.events.confusionSignals}</span>
+                </div>
+                <div className="p-2 rounded bg-[var(--bg-secondary)]">
+                  <span className="text-[var(--text-muted)]">Memory Reads</span>
+                  <span className="float-right font-mono text-[var(--accent-green)]">{context.events.memoryReads}</span>
+                </div>
+              </div>
+              
+              {/* Recommendation */}
+              <div className="p-3 rounded-lg bg-[var(--accent-purple)]/10 border border-[var(--accent-purple)]/30">
+                <p className="text-sm text-[var(--accent-purple)]">
+                  🧠 {context.recommendation}
                 </p>
               </div>
             </div>

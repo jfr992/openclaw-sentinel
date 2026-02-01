@@ -5,6 +5,7 @@
 import { Router } from 'express'
 import { calculateCorrectionScore, detectVerbalCorrections } from '../../../domain/services/SelfCorrectionTracker.js'
 import { analyzeConversation, calculateFeedbackScore } from '../../../domain/services/SentimentAnalyzer.js'
+import { calculateContextHealth } from '../../../domain/services/ContextHealthTracker.js'
 
 const router = Router()
 
@@ -70,16 +71,42 @@ router.get('/sentiment', async (req, res) => {
 })
 
 /**
+ * GET /api/insights/context
+ * Context health analysis
+ */
+router.get('/context', async (req, res) => {
+  try {
+    const { getContextData } = req.app.locals
+    const data = await getContextData()
+    
+    const analysis = calculateContextHealth(data)
+    
+    res.json({
+      healthScore: analysis.healthScore,
+      continuityRate: analysis.continuityRate,
+      status: analysis.status,
+      events: analysis.events,
+      recentEvents: analysis.recentEvents,
+      recommendation: analysis.recommendation
+    })
+  } catch (err) {
+    console.error('Context health API error:', err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+/**
  * GET /api/insights/summary
  * Combined insights summary
  */
 router.get('/summary', async (req, res) => {
   try {
-    const { getSessionData, getUserMessages } = req.app.locals
+    const { getSessionData, getUserMessages, getContextData } = req.app.locals
     
-    const [sessionData, userMessages] = await Promise.all([
+    const [sessionData, userMessages, contextData] = await Promise.all([
       getSessionData(),
-      getUserMessages()
+      getUserMessages(),
+      getContextData()
     ])
     
     const corrections = calculateCorrectionScore({
@@ -90,11 +117,13 @@ router.get('/summary', async (req, res) => {
     
     const sentiment = analyzeConversation(userMessages)
     const feedbackScore = calculateFeedbackScore(sentiment)
+    const contextHealth = calculateContextHealth(contextData)
     
-    // Calculate overall health score
+    // Calculate overall health score (weighted average)
     const correctionPenalty = Math.min(30, corrections.score * 0.3)
-    const sentimentBonus = (feedbackScore - 50) * 0.4
-    const healthScore = Math.max(0, Math.min(100, 70 - correctionPenalty + sentimentBonus))
+    const sentimentBonus = (feedbackScore - 50) * 0.3
+    const contextBonus = (contextHealth.healthScore - 50) * 0.2
+    const healthScore = Math.max(0, Math.min(100, 60 - correctionPenalty + sentimentBonus + contextBonus))
     
     res.json({
       healthScore: Math.round(healthScore),
@@ -108,6 +137,11 @@ router.get('/summary', async (req, res) => {
         feedbackScore,
         trend: sentiment.trend,
         satisfactionRate: sentiment.satisfactionRate
+      },
+      context: {
+        healthScore: contextHealth.healthScore,
+        continuityRate: contextHealth.continuityRate,
+        events: contextHealth.events
       },
       status: getHealthStatus(healthScore)
     })
