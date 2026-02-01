@@ -39,6 +39,8 @@ function App() {
   const [customEnd, setCustomEnd] = useState('')
   const [migrating, setMigrating] = useState(false)
   const [migrateResult, setMigrateResult] = useState(null)
+  const [agents, setAgents] = useState([])
+  const [selectedAgent, setSelectedAgent] = useState('') // Empty = all agents
 
   const fetchData = useCallback(async () => {
     try {
@@ -60,21 +62,27 @@ function App() {
         : dateRange
       // 5min for ≤1 day, hourly for ≤7 days, daily for longer
       const granularity = days <= 1 ? '5min' : days <= 7 ? 'hour' : 'day'
+      
+      // Build agent filter query param
+      const agentParam = selectedAgent ? `&agent=${selectedAgent}` : ''
 
-      const [metricsRes, sessionsRes, healthRes, risksRes] = await Promise.all([
-        fetch(`/api/metrics/query?start=${start}&end=${end}&granularity=${granularity}`).catch(() => null),
+      const [metricsRes, sessionsRes, healthRes, risksRes, agentsRes] = await Promise.all([
+        fetch(`/api/metrics/query?start=${start}&end=${end}&granularity=${granularity}${agentParam}`).catch(() => null),
         fetch('/api/sessions').catch(() => null),
         fetch('/api/health').catch(() => null),
-        fetch('/api/security/risks').catch(() => null)
+        fetch('/api/security/risks').catch(() => null),
+        fetch('/api/agents').catch(() => null)
       ])
 
       const metricsData = metricsRes?.ok ? await metricsRes.json() : null
       const sessions = sessionsRes?.ok ? await sessionsRes.json() : null
       const health = healthRes?.ok ? await healthRes.json() : null
       const risks = risksRes?.ok ? await risksRes.json() : null
+      const agentsData = agentsRes?.ok ? await agentsRes.json() : null
 
       setOnline(!!health)
       if (risks) setRiskLevel(risks.level || 0)
+      if (agentsData?.agents) setAgents(agentsData.agents)
 
       if (metricsData) {
         const { summary, byModel, timeseries } = metricsData
@@ -124,7 +132,7 @@ function App() {
       setLoading(false)
       setSyncing(false)
     }
-  }, [dateRange, customStart, customEnd])
+  }, [dateRange, customStart, customEnd, selectedAgent])
 
   // Track if we have data
   const hasData = data !== null
@@ -401,8 +409,26 @@ function App() {
               className="px-2 py-1 text-xs font-mono bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded text-[var(--text-primary)]"
             />
           </div>
+          {/* Agent Selector */}
+          {agents.length > 1 && (
+            <div className="flex items-center gap-2 ml-4">
+              <span className="text-sm text-[var(--text-secondary)]">Agent:</span>
+              <select
+                value={selectedAgent}
+                onChange={(e) => setSelectedAgent(e.target.value)}
+                className="px-2 py-1 text-xs font-mono bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded text-[var(--text-primary)] min-w-[100px]"
+              >
+                <option value="">All Agents</option>
+                {agents.map(agent => (
+                  <option key={agent} value={agent}>{agent}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          
           <span className="text-xs text-[var(--text-muted)] ml-auto">
             {dateRange < 1 ? `${Math.round(dateRange * 24)}h` : `${Math.round(dateRange)}d`}
+            {selectedAgent && ` • ${selectedAgent}`}
           </span>
         </div>
       )}

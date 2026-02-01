@@ -47,8 +47,8 @@ try {
 }
 const sessionsPattern = path.join(openclawDir, 'agents', '*', 'sessions', '*.jsonl')
 
-// Auto-sync interval (5 minutes)
-const SYNC_INTERVAL_MS = 5 * 60 * 1000
+// Auto-sync interval (configurable via env var, default 5 minutes)
+const SYNC_INTERVAL_MS = parseInt(process.env.SYNC_INTERVAL_MS || '300000', 10)
 
 // Sync all metrics to database
 async function syncAllMetrics() {
@@ -57,17 +57,17 @@ async function syncAllMetrics() {
   try {
     const startTime = Date.now()
 
-    // 1. Sync usage metrics
-    const { messages, toolCalls } = await parseSessionFiles()
+    // 1. Sync usage metrics (per-agent)
+    const { messages, toolCalls, agents } = await parseSessionFiles()
     let usageSynced = 0
     for (const msg of messages) {
       if (msg.usage || msg.message?.usage) {
-        metricsStore.recordUsage(msg)
+        metricsStore.recordUsage(msg, msg.agentId || 'main')
         usageSynced++
       }
     }
     for (const tc of toolCalls) {
-      metricsStore.recordToolCall(tc)
+      metricsStore.recordToolCall(tc, tc.agentId || 'main')
     }
 
     // 2. Sync performance metrics
@@ -416,15 +416,23 @@ setupOpenAPI(app)
 let lastParseTime = null
 let lastParseStats = { files: 0, messages: 0, toolCalls: 0 }
 
-async function parseSessionFiles() {
+async function parseSessionFiles(filterAgentId = null) {
   const startTime = Date.now()
   const files = await glob(sessionsPattern)
   const messages = []
   const toolCalls = []
   const toolResults = new Map() // toolCallId -> result
+  const agentsSeen = new Set()
 
   for (const file of files) {
     try {
+      // Extract agentId from path: .../agents/{agentId}/sessions/...
+      const agentId = path.basename(path.dirname(path.dirname(file)))
+      agentsSeen.add(agentId)
+      
+      // Skip if filtering by agent and this isn't the one
+      if (filterAgentId && agentId !== filterAgentId) continue
+      
       const content = fs.readFileSync(file, 'utf-8')
       const lines = content.trim().split('\n').filter(Boolean)
 
@@ -444,7 +452,8 @@ async function parseSessionFiles() {
             timestamp: entry.timestamp,
             model: msg.model,
             stopReason: msg.stopReason,
-            usage: msg.usage
+            usage: msg.usage,
+            agentId
           }
 
           // Extract text content - keep both content (for trackers) and text (for convenience)
@@ -469,7 +478,8 @@ async function parseSessionFiles() {
                   name: item.name,
                   arguments: item.arguments || {},
                   timestamp: entry.timestamp,
-                  messageId: entry.id
+                  messageId: entry.id,
+                  agentId
                 }
                 toolCalls.push(toolCall)
               }
@@ -519,7 +529,7 @@ async function parseSessionFiles() {
   lastParseTime = Date.now()
   lastParseStats = newStats
 
-  return { messages, toolCalls, toolResults: Array.from(toolResults.values()) }
+  return { messages, toolCalls, toolResults: Array.from(toolResults.values()), agents: Array.from(agentsSeen).sort() }
 }
 
 // Helper to get recent tool calls (for routes)
@@ -682,6 +692,36 @@ app.get('/api/health', (req, res) => {
       stats: lastParseStats
     }
   })
+})
+
+/**
+ * @openapi
+ * /api/agents:
+ *   get:
+ *     tags: [Health]
+ *     summary: List all agents
+ *     description: Returns list of all agent IDs found in session files
+ *     responses:
+ *       200:
+ *         description: List of agents
+ */
+app.get('/api/agents', async (req, res) => {
+  try {
+    const { agents } = await parseSessionFiles()
+    
+    // Also get from metrics store if available
+    const dbAgents = metricsStore ? metricsStore.listAgents() : []
+    
+    // Combine and dedupe
+    const allAgents = [...new Set([...agents, ...dbAgents])].sort()
+    
+    res.json({
+      agents: allAgents,
+      count: allAgents.length
+    })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
 // Activity endpoint (for dashboard)
@@ -958,10 +998,11 @@ app.get('/api/metrics/query', (req, res) => {
     const start = req.query.start || defaultStart.toISOString()
     const end = req.query.end || now.toISOString()
     const granularity = req.query.granularity || 'hour'
+    const agentId = req.query.agent || null // Filter by agent (null = all)
 
-    const data = metricsStore.queryUsage(start, end, granularity)
-    const summary = metricsStore.getSummary(start, end)
-    const byModel = metricsStore.queryByModel(start, end)
+    const data = metricsStore.queryUsage(start, end, granularity, agentId)
+    const summary = metricsStore.getSummary(start, end, agentId)
+    const byModel = metricsStore.queryByModel(start, end, agentId)
 
     res.json({
       range: { start, end, granularity },
@@ -993,10 +1034,12 @@ app.get('/api/metrics/summary', (req, res) => {
       '30days': 30 * 24 * 60 * 60 * 1000
     }
 
+    const agentId = req.query.agent || null
+    
     const result = {}
     for (const [label, ms] of Object.entries(ranges)) {
       const start = new Date(now.getTime() - ms).toISOString()
-      result[label] = metricsStore.getSummary(start, now.toISOString())
+      result[label] = metricsStore.getSummary(start, now.toISOString(), agentId)
     }
 
     res.json(result)
@@ -1137,11 +1180,12 @@ app.get('/api/metrics/performance', (req, res) => {
     const start = req.query.start || defaultStart.toISOString()
     const end = req.query.end || now.toISOString()
     const granularity = req.query.granularity || 'hour'
+    const agentId = req.query.agent || null
 
-    const data = metricsStore.queryPerformance(start, end, granularity)
+    const data = metricsStore.queryPerformance(start, end, granularity, agentId)
 
     res.json({
-      range: { start, end, granularity },
+      range: { start, end, granularity, agent: agentId },
       timeseries: data
     })
   } catch (err) {
@@ -1165,8 +1209,9 @@ app.get('/api/metrics/insights', (req, res) => {
     const start = req.query.start || defaultStart.toISOString()
     const end = req.query.end || now.toISOString()
     const granularity = req.query.granularity || 'hour'
+    const agentId = req.query.agent || null
 
-    const data = metricsStore.queryInsights(start, end, granularity)
+    const data = metricsStore.queryInsights(start, end, granularity, agentId)
 
     res.json({
       range: { start, end, granularity },
